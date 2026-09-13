@@ -1,26 +1,245 @@
-CREATE DATABASE IF NOT EXISTS likebang DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS ranking_platform
+    DEFAULT CHARACTER SET utf8mb4
+    COLLATE utf8mb4_0900_ai_ci;
 
-USE likebang;
+USE ranking_platform;
 
-DROP TABLE IF EXISTS sys_user;
-
+-- 用户表 sys_user
 CREATE TABLE sys_user (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
-    username VARCHAR(20) NOT NULL COMMENT '用户名',
-    password VARCHAR(100) NOT NULL COMMENT '密码',
-    nickname VARCHAR(50) DEFAULT NULL COMMENT '昵称',
-    email VARCHAR(100) DEFAULT NULL COMMENT '邮箱',
-    phone VARCHAR(11) DEFAULT NULL COMMENT '手机号',
-    status TINYINT DEFAULT 1 COMMENT '状态 1-启用 0-禁用',
-    deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 0-未删除 1-已删除',
-    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    UNIQUE KEY uk_username (username),
-    KEY idx_email (email),
-    KEY idx_phone (phone)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
+    id BIGINT NOT NULL COMMENT '用户ID，Snowflake生成',
 
-INSERT INTO sys_user (username, password, nickname, email, phone, status) VALUES
-('admin', '123456', '超级管理员', 'admin@likebang.com', '13800000001', 1),
-('test001', '123456', '测试用户1', 'test001@likebang.com', '13800000002', 1),
-('test002', '123456', '测试用户2', 'test002@likebang.com', '13800000003', 1);
+    username VARCHAR(32) NOT NULL COMMENT '登录用户名',
+    nickname VARCHAR(32) NOT NULL COMMENT '用户昵称',
+    avatar_url VARCHAR(512) DEFAULT NULL COMMENT '头像地址',
+
+    email VARCHAR(128) DEFAULT NULL COMMENT '邮箱',
+    phone VARCHAR(20) DEFAULT NULL COMMENT '手机号',
+
+    password_hash VARCHAR(255) DEFAULT NULL COMMENT '密码哈希',
+
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态：0禁用，1正常',
+
+    last_login_at DATETIME DEFAULT NULL COMMENT '最后登录时间',
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+
+    deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0否，1是',
+
+    PRIMARY KEY (id),
+
+    UNIQUE KEY uk_username (username),
+    UNIQUE KEY uk_email (email),
+
+    KEY idx_phone (phone),
+    KEY idx_created_at (created_at),
+    KEY idx_status (status)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='系统用户表';
+
+  --排名分类表 ranking_category
+  CREATE TABLE ranking_category (
+    id BIGINT NOT NULL COMMENT '分类ID，Snowflake生成',
+
+    name VARCHAR(32) NOT NULL COMMENT '分类名称',
+    description VARCHAR(255) DEFAULT NULL COMMENT '分类描述',
+    icon_url VARCHAR(512) DEFAULT NULL COMMENT '分类图标',
+
+    sort INT NOT NULL DEFAULT 0 COMMENT '排序值，越小越靠前',
+
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态：0禁用，1正常',
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+
+    PRIMARY KEY (id),
+
+    UNIQUE KEY uk_name (name),
+    KEY idx_status_sort (status, sort)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='排名分类表';
+
+  --核心：排名表 ranking
+
+  CREATE TABLE ranking (
+    id BIGINT NOT NULL COMMENT '排名ID，Snowflake生成',
+
+    creator_id BIGINT NOT NULL COMMENT '创建者ID',
+    category_id BIGINT DEFAULT NULL COMMENT '分类ID',
+
+    title VARCHAR(100) NOT NULL COMMENT '排名标题',
+    description VARCHAR(1000) DEFAULT NULL COMMENT '排名描述',
+    cover_url VARCHAR(512) DEFAULT NULL COMMENT '封面地址',
+
+    item_limit INT NOT NULL DEFAULT 10 COMMENT '最大排名项数量',
+    item_count INT NOT NULL DEFAULT 0 COMMENT '当前排名项数量',
+
+    participant_count BIGINT NOT NULL DEFAULT 0 COMMENT '参与人数',
+    agree_count BIGINT NOT NULL DEFAULT 0 COMMENT '累计认同数',
+    view_count BIGINT NOT NULL DEFAULT 0 COMMENT '浏览次数',
+
+    status TINYINT NOT NULL DEFAULT 0
+        COMMENT '状态：0草稿，1正常，2下架，3删除',
+
+    visibility TINYINT NOT NULL DEFAULT 1
+        COMMENT '可见性：0私有，1公开，2仅链接可见',
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+
+    PRIMARY KEY (id),
+
+    KEY idx_creator_id (creator_id),
+    KEY idx_category_status (category_id, status),
+    KEY idx_status_created (status, created_at),
+    KEY idx_status_view (status, view_count)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='排名表';
+
+  -- 5 排名项 ranking_item
+  CREATE TABLE ranking_item (
+    id BIGINT NOT NULL COMMENT '排名项ID，Snowflake生成',
+
+    ranking_id BIGINT NOT NULL COMMENT '排名ID',
+    creator_id BIGINT NOT NULL COMMENT '排名项创建者ID',
+
+    name VARCHAR(200) NOT NULL COMMENT '排名项名称',
+    description VARCHAR(1000) DEFAULT NULL COMMENT '排名项描述',
+    image_url VARCHAR(512) DEFAULT NULL COMMENT '排名项图片',
+
+    current_rank INT NOT NULL DEFAULT 0 COMMENT '当前排名',
+    score DECIMAL(12,4) NOT NULL DEFAULT 0 COMMENT '当前综合得分',
+
+    agree_count BIGINT NOT NULL DEFAULT 0 COMMENT '认同数',
+    oppose_count BIGINT NOT NULL DEFAULT 0 COMMENT '反对数',
+    participant_count BIGINT NOT NULL DEFAULT 0 COMMENT '参与人数',
+
+    agree_rate DECIMAL(7,4) NOT NULL DEFAULT 0
+        COMMENT '认同率',
+
+    reason_count INT NOT NULL DEFAULT 0 COMMENT '理由数量',
+
+    status TINYINT NOT NULL DEFAULT 1
+        COMMENT '状态：0删除，1正常，2隐藏',
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+
+    PRIMARY KEY (id),
+
+    UNIQUE KEY uk_ranking_name (ranking_id, name),
+
+    KEY idx_ranking_rank (ranking_id, current_rank),
+    KEY idx_ranking_score (ranking_id, score),
+    KEY idx_ranking_status (ranking_id, status),
+    KEY idx_creator_id (creator_id)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='排名项表';
+
+  -- 理由表 ranking_reason
+  CREATE TABLE ranking_reason (
+    id BIGINT NOT NULL COMMENT '理由ID，Snowflake生成',
+
+    ranking_id BIGINT NOT NULL COMMENT '排名ID',
+    item_id BIGINT NOT NULL COMMENT '排名项ID',
+    creator_id BIGINT NOT NULL COMMENT '理由创建者ID',
+
+    content VARCHAR(1000) NOT NULL COMMENT '理由内容',
+
+    agree_count BIGINT NOT NULL DEFAULT 0 COMMENT '认同数',
+    oppose_count BIGINT NOT NULL DEFAULT 0 COMMENT '反对数',
+    participant_count BIGINT NOT NULL DEFAULT 0 COMMENT '参与人数',
+
+    agree_rate DECIMAL(7,4) NOT NULL DEFAULT 0
+        COMMENT '认同率',
+
+    current_rank INT NOT NULL DEFAULT 0 COMMENT '理由当前排名',
+    score DECIMAL(12,4) NOT NULL DEFAULT 0 COMMENT '理由综合得分',
+
+    status TINYINT NOT NULL DEFAULT 1
+        COMMENT '状态：0删除，1正常，2隐藏',
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+
+    PRIMARY KEY (id),
+
+    KEY idx_item_rank (item_id, current_rank),
+    KEY idx_item_score (item_id, score),
+    KEY idx_ranking_item (ranking_id, item_id),
+    KEY idx_creator_id (creator_id),
+    KEY idx_status_created (status, created_at)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='排名项理由表';
+
+  --7 排名项投票表 ranking_item_vote
+  CREATE TABLE ranking_item_vote (
+    id BIGINT NOT NULL COMMENT '投票记录ID，Snowflake生成',
+
+    ranking_id BIGINT NOT NULL COMMENT '排名ID',
+    item_id BIGINT NOT NULL COMMENT '排名项ID',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+
+    vote_type TINYINT NOT NULL COMMENT '投票类型：1认同，-1反对',
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+
+    PRIMARY KEY (id),
+
+    UNIQUE KEY uk_item_user (item_id, user_id),
+
+    KEY idx_ranking_item (ranking_id, item_id),
+    KEY idx_user_id (user_id),
+    KEY idx_ranking_user (ranking_id, user_id),
+    KEY idx_created_at (created_at)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='排名项投票记录表';
+
+  -- 8 理由投票表 ranking_reason_vote
+  CREATE TABLE ranking_reason_vote (
+    id BIGINT NOT NULL COMMENT '投票记录ID，Snowflake生成',
+
+    ranking_id BIGINT NOT NULL COMMENT '排名ID',
+    item_id BIGINT NOT NULL COMMENT '排名项ID',
+    reason_id BIGINT NOT NULL COMMENT '理由ID',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+
+    vote_type TINYINT NOT NULL COMMENT '投票类型：1认同，-1反对',
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+
+    PRIMARY KEY (id),
+
+    UNIQUE KEY uk_reason_user (reason_id, user_id),
+
+    KEY idx_ranking_item_reason (ranking_id, item_id, reason_id),
+    KEY idx_user_id (user_id),
+    KEY idx_ranking_user (ranking_id, user_id),
+    KEY idx_created_at (created_at)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='理由投票记录表';
+
+  

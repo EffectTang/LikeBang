@@ -7,6 +7,11 @@ spring:
   profiles:
     active: dev
 
+likebang:
+  snowflake:
+    worker-id: ${WORKER_ID:1}
+    datacenter-id: ${DC_ID:1}
+
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
   type-aliases-package: com.likebang.modules.**.entity
@@ -15,7 +20,7 @@ mybatis-plus:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     db-config:
-      id-type: auto
+      id-type: assign_id
       logic-delete-field: deleted
       logic-delete-value: 1
       logic-not-delete-value: 0

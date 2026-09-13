@@ -92,3 +92,19 @@ Desktop.ini
 *.swp
 *.swo
 *~
+
+# =========================
+# Node.js / Vue 前端
+# =========================
+node_modules/
+dist/
+dist-ssr/
+.local
+
+# =========================
+# 编辑器临时文件
+# =========================
+*.local
+.vite/
+.npm
+.eslintcache
