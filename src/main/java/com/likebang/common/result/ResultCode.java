@@ -17,7 +17,9 @@ public enum ResultCode {
 
     USER_NOT_FOUND(1001, "用户不存在"),
     USER_ALREADY_EXISTS(1002, "用户已存在"),
-    USER_PASSWORD_ERROR(1003, "密码错误");
+    USER_PASSWORD_ERROR(1003, "密码错误"),
+    USER_DISABLED(1004, "账号已被禁用"),
+    TOKEN_INVALID(1005, "登录状态无效，请重新登录");
 
     private final Integer code;
     private final String message;

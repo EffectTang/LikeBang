@@ -179,7 +179,8 @@ const handleDelete = (row) => {
 }
 
 const submitForm = async () => {
-  await formRef.value.validate()
+  const valid = await formRef.value.validate().catch(() => false)
+  if (!valid) return
   if (isEdit.value) {
     await request.put(`/users/${editId.value}`, form)
     ElMessage.success('更新成功')

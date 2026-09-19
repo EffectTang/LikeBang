@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.likebang.modules.ranking.mapper.RankingMapper">
+
+    <!-- 浏览量原子自增，避免读改写并发覆盖 -->
+    <update id="incrementViewCount">
+        UPDATE ranking SET view_count = view_count + 1 WHERE id = #{id}
+    </update>
+
+</mapper>

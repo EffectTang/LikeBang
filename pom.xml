@@ -19,7 +19,7 @@
 
     <properties>
         <java.version>17</java.version>
-        <mybatis-plus.version>3.5.6</mybatis-plus.version>
+        <mybatis-plus.version>3.5.10</mybatis-plus.version>
         <mysql.version>8.0.33</mysql.version>
         <lombok.version>1.18.32</lombok.version>
         <hutool.version>5.8.27</hutool.version>
@@ -38,8 +38,15 @@
 
         <dependency>
             <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-boot-starter</artifactId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
             <version>${mybatis-plus.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser</artifactId>
+            <!-- 建议版本与主 starter 保持一致 -->
+            <version>${mybatis-plus.version}</version> 
         </dependency>
 
         <dependency>
