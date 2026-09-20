@@ -58,6 +58,11 @@ public class SysUser implements Serializable {
     private Integer status;
 
     /**
+     * 角色：0普通用户，1管理员
+     */
+    private Integer role;
+
+    /**
      * 最后登录时间
      */
     private LocalDateTime lastLoginAt;

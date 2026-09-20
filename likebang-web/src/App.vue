@@ -21,7 +21,7 @@
             <el-icon><Compass /></el-icon>
             <span>发现榜单</span>
           </el-menu-item>
-          <el-sub-menu index="admin">
+          <el-sub-menu index="admin" v-if="userStore.isAdmin">
             <template #title>
               <el-icon><Setting /></el-icon>
               <span>管理后台</span>
@@ -29,6 +29,10 @@
             <el-menu-item index="/admin/dashboard">
               <el-icon><DataBoard /></el-icon>
               <span>仪表盘</span>
+            </el-menu-item>
+            <el-menu-item index="/admin/categories">
+              <el-icon><Grid /></el-icon>
+              <span>分类管理</span>
             </el-menu-item>
             <el-menu-item index="/admin/users">
               <el-icon><User /></el-icon>
@@ -45,9 +49,9 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { DataBoard, User, Compass, Setting } from '@element-plus/icons-vue'
+import { DataBoard, User, Compass, Setting, Grid } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 
 const route = useRoute()
@@ -59,6 +63,13 @@ const activeMenu = computed(() =>
   route.path.startsWith('/rankings') ? '/community' : route.path
 )
 const isLoginPage = computed(() => route.path === '/login')
+
+// 刷新后从后端拉取最新用户信息，保证 role 与 localStorage 缓存一致（避免菜单/权限显示错乱）
+onMounted(() => {
+  if (userStore.isLogin) {
+    userStore.fetchMe().catch(() => {})
+  }
+})
 
 function logout() {
   userStore.logout()

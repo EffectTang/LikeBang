@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS sys_user (
 
     status TINYINT NOT NULL DEFAULT 1 COMMENT '状态：0禁用，1正常',
 
+    role TINYINT NOT NULL DEFAULT 0 COMMENT '角色：0普通用户，1管理员',
+
     last_login_at DATETIME DEFAULT NULL COMMENT '最后登录时间',
 
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -241,5 +243,29 @@ CREATE TABLE IF NOT EXISTS ranking_reason_vote (
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_0900_ai_ci
   COMMENT='理由投票记录表';
+
+-- 8 初始化分类数据（参考数据，可重复执行：依赖 uk_name 唯一键，INSERT IGNORE 跳过已存在项）
+INSERT IGNORE INTO ranking_category (id, name, description, sort, status) VALUES
+    (1001, '书籍',   '读书、小说、专业书等相关榜单', 1, 1),
+    (1002, '电影',   '电影、剧集、纪录片等榜单',     2, 1),
+    (1003, '音乐',   '歌曲、专辑、歌手等榜单',       3, 1),
+    (1004, '游戏',   '端游、手游、主机游戏等榜单',   4, 1),
+    (1005, '美食',   '餐厅、菜品、零食等榜单',       5, 1),
+    (1006, '旅行',   '城市、景点、路线等榜单',       6, 1),
+    (1007, '科技',   '产品、框架、工具等榜单',       7, 1),
+    (1008, '其他',   '未归类的主题榜单',             99, 1);
+
+-- 9 迁移：为已存在的旧 sys_user 表补充 role 列（新建库由上方 CREATE 已含此列，执行本行报错可忽略）
+-- 注意：MySQL 8 不支持 ADD COLUMN IF NOT EXISTS，此语句为一次性迁移，仅需执行一次
+ ALTER TABLE sys_user ADD COLUMN role TINYINT NOT NULL DEFAULT 0 COMMENT '角色：0普通用户，1管理员' AFTER status;
+
+-- 10 内置超级管理员（幂等：依赖 uk_username）。以下为开发环境默认引导账号，生产上线务必重置密码与邮箱
+-- password_hash 由与登录一致的 Hutool BCrypt（$2a$ 前缀）生成
+INSERT IGNORE INTO sys_user
+    (id, username, nickname, email, password_hash, status, role)
+VALUES
+    (1, 'admin', '超级管理员', 'admin@likebang.local',
+     '$2a$10$l0akf4AwJv2vSqGce4FOGuC174SMiXwBf0.BnEMMyI8TDSZPr.unm', 1, 1);
+
 
   

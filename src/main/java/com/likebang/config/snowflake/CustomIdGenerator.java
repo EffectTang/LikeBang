@@ -43,7 +43,7 @@ public class CustomIdGenerator implements IdentifierGenerator {
 
         this.sequence = new Sequence(workerId, datacenterId);
 
-        log.info("✅ 雪花ID生成器初始化完成: workerId={}, datacenterId={}", workerId, datacenterId);
+        log.info("雪花ID生成器初始化完成: workerId={}, datacenterId={}", workerId, datacenterId);
     }
 
     @Override

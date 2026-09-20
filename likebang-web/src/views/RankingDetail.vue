@@ -7,7 +7,17 @@
     <template v-if="detail">
       <!-- 榜单头部 -->
       <div class="detail-header">
-        <h1 class="detail-title">{{ detail.title }}</h1>
+        <div class="detail-header-top">
+          <h1 class="detail-title">{{ detail.title }}</h1>
+          <el-button
+            v-if="canDelete"
+            type="danger"
+            plain
+            size="small"
+            :icon="Delete"
+            @click="handleDelete"
+          >删除榜单</el-button>
+        </div>
         <p class="detail-desc">{{ detail.description || '暂无描述' }}</p>
         <div class="detail-meta">
           <el-tag v-if="detail.categoryName" size="small" type="info">{{ detail.categoryName }}</el-tag>
@@ -29,8 +39,22 @@
               <div v-if="item.description" class="item-desc">{{ item.description }}</div>
             </div>
             <div class="item-stats">
-              <el-tag type="success" size="small">认同 {{ item.agreeCount }}</el-tag>
-              <el-tag type="danger" size="small" effect="plain">反对 {{ item.opposeCount }}</el-tag>
+              <el-button
+                round
+                size="small"
+                :type="item.myVoteType === 1 ? 'success' : 'default'"
+                :plain="item.myVoteType !== 1"
+                :loading="votingMap['i' + item.id]"
+                @click="handleItemVote(item, 1)"
+              >👍 认同 {{ item.agreeCount }}</el-button>
+              <el-button
+                round
+                size="small"
+                :type="item.myVoteType === -1 ? 'danger' : 'default'"
+                :plain="item.myVoteType !== -1"
+                :loading="votingMap['i' + item.id]"
+                @click="handleItemVote(item, -1)"
+              >👎 反对 {{ item.opposeCount }}</el-button>
             </div>
           </div>
 
@@ -45,11 +69,72 @@
               description="还没有理由"
               :image-size="40"
             />
+            <!-- 理由条目 -->
             <div v-for="r in item.reasons" :key="r.id" class="reason">
-              <div class="reason-content">{{ r.content }}</div>
-              <div class="reason-meta">
-                <span>@{{ r.creatorNickname || '匿名' }}</span>
-                <span>👍 {{ r.agreeCount }}</span>
+              <!-- 行内编辑模式 -->
+              <div v-if="editingReasonId === r.id" class="reason-edit">
+                <el-input
+                  v-model="editingReasonContent"
+                  type="textarea"
+                  :rows="2"
+                  maxlength="1000"
+                  show-word-limit
+                />
+                <div class="reason-edit-actions">
+                  <el-button size="small" @click="cancelEditReason">取消</el-button>
+                  <el-button size="small" type="primary" :loading="savingReason" @click="saveEditReason">保存</el-button>
+                </div>
+              </div>
+              <!-- 正常展示模式 -->
+              <template v-else>
+                <div class="reason-content">{{ r.content }}</div>
+                <div class="reason-footer">
+                  <div class="reason-meta">
+                    <span>@{{ r.creatorNickname || '匿名' }}</span>
+                    <span class="reason-vote">
+                      <el-button
+                        link
+                        size="small"
+                        :type="r.myVoteType === 1 ? 'success' : 'info'"
+                        :loading="votingMap['r' + r.id]"
+                        @click="handleReasonVote(r, 1)"
+                      >👍 {{ r.agreeCount }}</el-button>
+                      <el-button
+                        link
+                        size="small"
+                        :type="r.myVoteType === -1 ? 'danger' : 'info'"
+                        :loading="votingMap['r' + r.id]"
+                        @click="handleReasonVote(r, -1)"
+                      >👎 {{ r.opposeCount }}</el-button>
+                    </span>
+                  </div>
+                  <div v-if="canEditReason(r)" class="reason-ops">
+                    <el-button link size="small" :icon="EditPen" @click="startEditReason(r)">编辑</el-button>
+                    <el-button link size="small" type="danger" :icon="Delete" @click="handleDeleteReason(r.id)">删除</el-button>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <!-- 添加理由（仅登录用户可见） -->
+            <div v-if="userStore.isLogin" class="add-reason">
+              <el-input
+                :model-value="reasonDrafts[item.id] ?? ''"
+                type="textarea"
+                :rows="2"
+                maxlength="1000"
+                show-word-limit
+                placeholder="说说你的理由…"
+                @update:model-value="v => { reasonDrafts[item.id] = v }"
+              />
+              <div class="add-reason-actions">
+                <el-button
+                  size="small"
+                  type="primary"
+                  :loading="addingReasonMap[item.id]"
+                  :disabled="!reasonDrafts[item.id]?.trim()"
+                  @click="submitAddReason(item.id)"
+                >提交理由</el-button>
               </div>
             </div>
           </div>
@@ -60,17 +145,156 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ChatLineSquare } from '@element-plus/icons-vue'
-import { getRankingDetail } from '@/api/ranking'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { ChatLineSquare, Delete, EditPen } from '@element-plus/icons-vue'
+import {
+  getRankingDetail,
+  deleteRanking,
+  addReason as apiAddReason,
+  updateReason as apiUpdateReason,
+  deleteReason as apiDeleteReason,
+  voteItem,
+  cancelItemVote,
+  voteReason,
+  cancelReasonVote
+} from '@/api/ranking'
+import { useUserStore } from '@/store/user'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 
 const loading = ref(false)
 const detail = ref(null)
 
+// ---- 榜单删除权限 ----
+const canDelete = computed(() => {
+  if (!detail.value) return false
+  const myId = userStore.userInfo?.id
+  const isOwner = myId != null && String(detail.value.creatorId) === String(myId)
+  return userStore.isAdmin || isOwner
+})
+
+// ---- 理由编辑状态 ----
+const editingReasonId = ref(null)       // 正在编辑的理由 ID，null 表示无
+const editingReasonContent = ref('')    // 编辑框内容
+const savingReason = ref(false)         // 保存中 loading
+
+// 每条理由的"新增草稿"，以 itemId 为 key
+const reasonDrafts = reactive({})
+// 每个 item 的"提交中"标志，以 itemId 为 key
+const addingReasonMap = reactive({})
+
+// 判断当前用户是否可以编辑/删除该理由（本人或管理员）
+function canEditReason(r) {
+  if (!userStore.userInfo) return false
+  return userStore.isAdmin ||
+    (r.creatorId != null && String(r.creatorId) === String(userStore.userInfo.id))
+}
+
+// ---- 理由操作 ----
+function startEditReason(r) {
+  editingReasonId.value = r.id
+  editingReasonContent.value = r.content
+}
+
+function cancelEditReason() {
+  editingReasonId.value = null
+  editingReasonContent.value = ''
+}
+
+async function saveEditReason() {
+  if (!editingReasonContent.value.trim()) {
+    ElMessage.warning('理由内容不能为空')
+    return
+  }
+  savingReason.value = true
+  try {
+    await apiUpdateReason(editingReasonId.value, editingReasonContent.value.trim())
+    ElMessage.success('修改成功')
+    cancelEditReason()
+    await load()
+  } finally {
+    savingReason.value = false
+  }
+}
+
+async function handleDeleteReason(reasonId) {
+  try {
+    await ElMessageBox.confirm('确定要删除该理由吗？', '提示', { type: 'warning' })
+  } catch { return }
+  await apiDeleteReason(reasonId)
+  ElMessage.success('删除成功')
+  await load()
+}
+
+async function submitAddReason(itemId) {
+  const content = reasonDrafts[itemId]?.trim()
+  if (!content) return
+  addingReasonMap[itemId] = true
+  try {
+    await apiAddReason(route.params.id, itemId, content)
+    reasonDrafts[itemId] = ''
+    ElMessage.success('理由已添加')
+    await load()
+  } finally {
+    addingReasonMap[itemId] = false
+  }
+}
+
+// ---- 投票：同类型再点=取消，异类型=换票，成功后就地更新不整页刷新 ----
+const votingMap = reactive({})
+
+async function handleItemVote(item, voteType) {
+  if (!userStore.isLogin) {
+    ElMessage.warning('请先登录后投票')
+    return
+  }
+  const key = 'i' + item.id
+  if (votingMap[key]) return
+  votingMap[key] = true
+  try {
+    const cancel = item.myVoteType === voteType
+    const res = cancel
+      ? await cancelItemVote(route.params.id, item.id)
+      : await voteItem(route.params.id, item.id, voteType)
+    applyVoteResult(item, res?.data)
+  } finally {
+    votingMap[key] = false
+  }
+}
+
+async function handleReasonVote(reason, voteType) {
+  if (!userStore.isLogin) {
+    ElMessage.warning('请先登录后投票')
+    return
+  }
+  const key = 'r' + reason.id
+  if (votingMap[key]) return
+  votingMap[key] = true
+  try {
+    const cancel = reason.myVoteType === voteType
+    const res = cancel
+      ? await cancelReasonVote(reason.id)
+      : await voteReason(reason.id, voteType)
+    applyVoteResult(reason, res?.data)
+  } finally {
+    votingMap[key] = false
+  }
+}
+
+function applyVoteResult(target, data) {
+  if (!data) return
+  target.myVoteType = data.myVoteType ?? null
+  target.agreeCount = data.agreeCount
+  target.opposeCount = data.opposeCount
+  if (data.participantCount != null) target.participantCount = data.participantCount
+  if (data.agreeRate != null) target.agreeRate = data.agreeRate
+}
+
+// ---- 榜单基础 ----
 function rankClass(rank) {
   if (rank === 1) return 'rank-1'
   if (rank === 2) return 'rank-2'
@@ -83,9 +307,25 @@ async function load() {
   try {
     const res = await getRankingDetail(route.params.id)
     detail.value = res.data
+    // 为每个 item 初始化草稿 key（Vue 3 reactive 新增 key 也是响应式的）
+    if (res.data?.items) {
+      res.data.items.forEach(i => {
+        if (reasonDrafts[i.id] === undefined) reasonDrafts[i.id] = ''
+      })
+    }
   } finally {
     loading.value = false
   }
+}
+
+function handleDelete() {
+  ElMessageBox.confirm('确定要删除该榜单吗？删除后不可恢复。', '提示', {
+    type: 'warning'
+  }).then(async () => {
+    await deleteRanking(route.params.id)
+    ElMessage.success('删除成功')
+    router.push('/community')
+  }).catch(() => {})
 }
 
 onMounted(load)
@@ -105,6 +345,12 @@ onMounted(load)
   padding: 24px;
   border-radius: 12px;
   margin-bottom: 20px;
+}
+.detail-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 .detail-title {
   margin: 0 0 8px;
@@ -165,6 +411,16 @@ onMounted(load)
   display: flex;
   gap: 8px;
 }
+.item-stats .el-button + .el-button {
+  margin-left: 0;
+}
+.reason-vote {
+  display: inline-flex;
+  align-items: center;
+}
+.reason-vote .el-button + .el-button {
+  margin-left: 4px;
+}
 .reasons {
   margin-top: 14px;
   padding-top: 12px;
@@ -189,11 +445,42 @@ onMounted(load)
   line-height: 1.6;
   color: #303133;
 }
+.reason-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+}
 .reason-meta {
   display: flex;
   gap: 16px;
-  margin-top: 6px;
   font-size: 12px;
   color: #909399;
+}
+.reason-ops {
+  display: flex;
+  gap: 4px;
+}
+/* 行内编辑 */
+.reason-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.reason-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+/* 添加理由 */
+.add-reason {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #ebeef5;
+}
+.add-reason-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
 }
 </style>

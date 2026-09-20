@@ -25,9 +25,11 @@ public class WebConfig implements WebMvcConfigurer {
     }
 
     /**
-     * 登录拦截：除认证接口外全部需要携带 Token
+     * 登录拦截：除认证接口白名单外，其它请求默认需携带 Token。
      * <p>
-     * 后续如需公开读的榜单浏览接口，加入 excludePathPatterns 白名单即可
+     * 社区浏览类接口（如 /rankings/public、/categories）的“只读 GET”放行由
+     * {@link AuthInterceptor} 按 HTTP 方法精确判断，因此此处不再按路径整体放行，
+     * 以免其新增/修改/删除等写操作被无登录访问。
      */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
@@ -36,10 +38,6 @@ public class WebConfig implements WebMvcConfigurer {
                 .excludePathPatterns(
                         "/user/auth/login",
                         "/user/auth/register",
-                        // 社区浏览类接口（GET）允许游客访问，创建/投票仍需登录
-                        "/rankings/public",
-                        "/categories",
-                        "/categories/**",
                         "/error");
     }
 }

@@ -3,22 +3,31 @@ package com.likebang.modules.ranking.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.likebang.common.dto.PageParam;
+import com.likebang.common.auth.LoginUser;
 import com.likebang.common.exception.BusinessException;
 import com.likebang.common.result.ResultCode;
 import com.likebang.common.utils.DateTimeUtils;
+import com.likebang.common.utils.UserContext;
 import com.likebang.modules.ranking.dto.request.RankingCreateRequest;
+import com.likebang.modules.ranking.dto.request.ReasonCreateRequest;
+import com.likebang.modules.ranking.dto.request.ReasonUpdateRequest;
 import com.likebang.modules.ranking.dto.response.RankingDetailResponse;
 import com.likebang.modules.ranking.dto.response.RankingResponse;
 import com.likebang.modules.ranking.entity.Ranking;
 import com.likebang.modules.ranking.entity.RankingCategory;
 import com.likebang.modules.ranking.entity.RankingItem;
+import com.likebang.modules.ranking.entity.RankingItemVote;
 import com.likebang.modules.ranking.entity.RankingReason;
+import com.likebang.modules.ranking.entity.RankingReasonVote;
 import com.likebang.modules.ranking.mapper.RankingCategoryMapper;
 import com.likebang.modules.ranking.mapper.RankingItemMapper;
+import com.likebang.modules.ranking.mapper.RankingItemVoteMapper;
 import com.likebang.modules.ranking.mapper.RankingMapper;
 import com.likebang.modules.ranking.mapper.RankingReasonMapper;
+import com.likebang.modules.ranking.mapper.RankingReasonVoteMapper;
 import com.likebang.modules.ranking.service.RankingService;
 import com.likebang.modules.user.entity.SysUser;
 import com.likebang.modules.user.mapper.SysUserMapper;
@@ -31,6 +40,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -43,6 +53,12 @@ public class RankingServiceImpl implements RankingService {
 
     /** 状态：正常（已发布） */
     private static final int STATUS_PUBLISHED = 1;
+    /** 状态：已删除 */
+    private static final int STATUS_DELETED = 3;
+    /** 项目/理由启用状态 */
+    private static final int ITEM_REASON_NORMAL = 1;
+    /** 理由已删除 */
+    private static final int REASON_DELETED = 0;
     /** 可见性：公开 */
     private static final int VISIBILITY_PUBLIC = 1;
     /** 详情理由列表最多展示条数 */
@@ -52,6 +68,8 @@ public class RankingServiceImpl implements RankingService {
     private final RankingItemMapper rankingItemMapper;
     private final RankingReasonMapper rankingReasonMapper;
     private final RankingCategoryMapper rankingCategoryMapper;
+    private final RankingItemVoteMapper rankingItemVoteMapper;
+    private final RankingReasonVoteMapper rankingReasonVoteMapper;
     private final SysUserMapper sysUserMapper;
 
     @Override
@@ -159,7 +177,7 @@ public class RankingServiceImpl implements RankingService {
     @Transactional(rollbackFor = Exception.class)
     public RankingDetailResponse detail(Long id) {
         Ranking ranking = rankingMapper.selectById(id);
-        if (ranking == null || ranking.getStatus() == 3) {
+        if (ranking == null || ranking.getStatus() == STATUS_DELETED) {
             throw new BusinessException(ResultCode.NOT_FOUND.getCode(), "榜单不存在");
         }
         if (ranking.getStatus() != STATUS_PUBLISHED) {
@@ -204,11 +222,27 @@ public class RankingServiceImpl implements RankingService {
         Map<Long, List<RankingReason>> reasonsByItem = reasons.stream()
                 .collect(Collectors.groupingBy(RankingReason::getItemId));
 
+        // 回填当前用户投票态（每表一条批量查询，无 N+1）；无登录上下文时全部为 null
+        Long currentUserId = UserContext.getUserId();
+        final Map<Long, Integer> myItemVotes = currentUserId == null ? Map.of()
+                : rankingItemVoteMapper.selectList(Wrappers.<RankingItemVote>lambdaQuery()
+                        .eq(RankingItemVote::getRankingId, id)
+                        .eq(RankingItemVote::getUserId, currentUserId)).stream()
+                .collect(Collectors.toMap(RankingItemVote::getItemId,
+                        RankingItemVote::getVoteType, (a, b) -> a));
+        final Map<Long, Integer> myReasonVotes = currentUserId == null ? Map.of()
+                : rankingReasonVoteMapper.selectList(Wrappers.<RankingReasonVote>lambdaQuery()
+                        .eq(RankingReasonVote::getRankingId, id)
+                        .eq(RankingReasonVote::getUserId, currentUserId)).stream()
+                .collect(Collectors.toMap(RankingReasonVote::getReasonId,
+                        RankingReasonVote::getVoteType, (a, b) -> a));
+
         response.setItems(items.stream().map(item -> {
             RankingDetailResponse.RankingItemResponse itemResponse =
                     new RankingDetailResponse.RankingItemResponse();
             BeanUtils.copyProperties(item, itemResponse);
             itemResponse.setCreatorNickname(nicknames.get(item.getCreatorId()));
+            itemResponse.setMyVoteType(myItemVotes.get(item.getId()));
             itemResponse.setReasons(reasonsByItem.getOrDefault(item.getId(), List.of())
                     .stream().limit(REASON_LIMIT).map(reason -> {
                         RankingDetailResponse.RankingReasonResponse reasonResponse =
@@ -216,12 +250,121 @@ public class RankingServiceImpl implements RankingService {
                         BeanUtils.copyProperties(reason, reasonResponse);
                         reasonResponse.setCreatorNickname(
                                 nicknames.get(reason.getCreatorId()));
+                        reasonResponse.setMyVoteType(myReasonVotes.get(reason.getId()));
                         return reasonResponse;
                     }).collect(Collectors.toList()));
             return itemResponse;
         }).collect(Collectors.toList()));
 
         return response;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void delete(Long id, LoginUser operator) {
+        if (operator == null) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED);
+        }
+        Ranking ranking = rankingMapper.selectById(id);
+        if (ranking == null || ranking.getStatus() == STATUS_DELETED) {
+            throw new BusinessException(ResultCode.NOT_FOUND.getCode(), "榜单不存在");
+        }
+        boolean isOwner = ranking.getCreatorId() != null
+                && ranking.getCreatorId().equals(operator.getUserId());
+        if (!isOwner && !operator.isAdmin()) {
+            throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "无权删除该榜单");
+        }
+
+        Ranking update = new Ranking();
+        update.setId(id);
+        update.setStatus(STATUS_DELETED);
+        update.setUpdatedAt(DateTimeUtils.now());
+        rankingMapper.updateById(update);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long addReason(Long rankingId, Long itemId, ReasonCreateRequest request, LoginUser operator) {
+        if (operator == null) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED);
+        }
+        Ranking ranking = rankingMapper.selectById(rankingId);
+        if (ranking == null || ranking.getStatus() == STATUS_DELETED) {
+            throw new BusinessException(ResultCode.NOT_FOUND.getCode(), "榜单不存在");
+        }
+        if (ranking.getStatus() != STATUS_PUBLISHED) {
+            throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "榜单未发布");
+        }
+        RankingItem item = rankingItemMapper.selectById(itemId);
+        if (item == null
+                || !Objects.equals(item.getRankingId(), rankingId)
+                || !Objects.equals(item.getStatus(), ITEM_REASON_NORMAL)) {
+            throw new BusinessException(ResultCode.NOT_FOUND.getCode(), "排名项不存在");
+        }
+
+        int nextRank = (item.getReasonCount() == null ? 0 : item.getReasonCount()) + 1;
+        RankingReason reason = new RankingReason();
+        reason.setRankingId(rankingId);
+        reason.setItemId(itemId);
+        reason.setCreatorId(operator.getUserId());
+        reason.setContent(request.getContent());
+        reason.setCurrentRank(nextRank);
+        reason.setStatus(ITEM_REASON_NORMAL);
+        reason.setCreatedAt(DateTimeUtils.now());
+        reason.setUpdatedAt(DateTimeUtils.now());
+        rankingReasonMapper.insert(reason);
+
+        // 原子自增项上的 reason_count，避免读改写并发覆盖
+        rankingItemMapper.update(null, Wrappers.<RankingItem>lambdaUpdate()
+                .eq(RankingItem::getId, itemId)
+                .setSql("reason_count = reason_count + 1"));
+
+        return reason.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateReason(Long reasonId, ReasonUpdateRequest request, LoginUser operator) {
+        RankingReason reason = loadEditableReason(reasonId, operator);
+        reason.setContent(request.getContent());
+        reason.setUpdatedAt(DateTimeUtils.now());
+        rankingReasonMapper.updateById(reason);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteReason(Long reasonId, LoginUser operator) {
+        RankingReason reason = loadEditableReason(reasonId, operator);
+
+        RankingReason update = new RankingReason();
+        update.setId(reason.getId());
+        update.setStatus(REASON_DELETED);
+        update.setUpdatedAt(DateTimeUtils.now());
+        rankingReasonMapper.updateById(update);
+
+        // 原子回退项上的 reason_count，下限 0
+        rankingItemMapper.update(null, Wrappers.<RankingItem>lambdaUpdate()
+                .eq(RankingItem::getId, reason.getItemId())
+                .setSql("reason_count = GREATEST(reason_count - 1, 0)"));
+    }
+
+    /**
+     * 加载可编辑的理由：存在、未删，且当前用户为创建者本人或管理员
+     */
+    private RankingReason loadEditableReason(Long reasonId, LoginUser operator) {
+        if (operator == null) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED);
+        }
+        RankingReason reason = rankingReasonMapper.selectById(reasonId);
+        if (reason == null || !Objects.equals(reason.getStatus(), ITEM_REASON_NORMAL)) {
+            throw new BusinessException(ResultCode.NOT_FOUND.getCode(), "理由不存在");
+        }
+        boolean isOwner = reason.getCreatorId() != null
+                && reason.getCreatorId().equals(operator.getUserId());
+        if (!isOwner && !operator.isAdmin()) {
+            throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "无权操作该理由");
+        }
+        return reason;
     }
 
     private Map<Long, String> nicknameMap(Set<Long> userIds) {

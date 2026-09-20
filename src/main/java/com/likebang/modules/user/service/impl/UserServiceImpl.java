@@ -6,6 +6,7 @@ import cn.hutool.jwt.JWTUtil;
 import cn.hutool.jwt.JWTValidator;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.likebang.common.exception.BusinessException;
+import com.likebang.common.auth.UserRole;
 import com.likebang.common.result.ResultCode;
 import com.likebang.config.auth.AuthProperties;
 import com.likebang.modules.user.dto.request.LoginRequest;
@@ -67,6 +68,8 @@ public class UserServiceImpl implements UserService {
         user.setEmail(email);
         user.setPhone(blankToNull(request.getPhone()));
         user.setStatus(1);
+        // 注册入口一律为普通用户，管理员只能由内置超管/后台提升产生
+        user.setRole(UserRole.USER.getCode());
         sysUserMapper.insert(user);
 
         log.info("新用户注册成功: id={}, username={}", user.getId(), user.getUsername());

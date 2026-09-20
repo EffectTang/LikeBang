@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.likebang.modules.ranking.mapper.RankingItemMapper">
+
+    <!--
+      投票计数原子落账：delta 由 Service 根据用户旧票态推导（-1/0/+1），
+      UPDATE 单语句内列引用为旧值，agree_rate 用"旧值+delta"直接重算，
+      GREATEST/LEAST 兜底防止计数越界或并发漂移。
+    -->
+    <update id="applyVoteDelta">
+        UPDATE ranking_item
+        SET agree_count       = GREATEST(agree_count + #{dAgree}, 0),
+            oppose_count      = GREATEST(oppose_count + #{dOppose}, 0),
+            participant_count = GREATEST(participant_count + #{dParticipant}, 0),
+            agree_rate        = CASE
+                WHEN participant_count + #{dParticipant} > 0
+                    THEN LEAST(GREATEST((agree_count + #{dAgree})
+                        / (participant_count + #{dParticipant}), 0), 1)
+                ELSE 0 END,
+            updated_at        = NOW()
+        WHERE id = #{itemId}
+    </update>
+
+</mapper>

@@ -1,6 +1,7 @@
 package com.likebang.modules.ranking.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.likebang.common.auth.RequireRole;
 import com.likebang.common.dto.PageParam;
 import com.likebang.common.result.Result;
 import com.likebang.modules.ranking.dto.request.CategoryCreateRequest;
@@ -24,8 +25,9 @@ public class CategoryController {
     private final CategoryService categoryService;
 
     /**
-     * 分页查询分类列表
+     * 分页查询分类列表（管理后台，仅管理员）
      */
+    @RequireRole
     @GetMapping("/page")
     public Result<IPage<CategoryResponse>> page(@ModelAttribute PageParam pageParam) {
         return Result.success(categoryService.page(pageParam));
@@ -48,8 +50,9 @@ public class CategoryController {
     }
 
     /**
-     * 新增分类
+     * 新增分类（仅管理员）
      */
+    @RequireRole
     @PostMapping
     public Result<Void> create(@Valid @RequestBody CategoryCreateRequest request) {
         categoryService.create(request);
@@ -57,8 +60,9 @@ public class CategoryController {
     }
 
     /**
-     * 修改分类
+     * 修改分类（仅管理员）
      */
+    @RequireRole
     @PutMapping("/{id}")
     public Result<Void> update(@PathVariable Long id,
                                @Valid @RequestBody CategoryUpdateRequest request) {
@@ -67,8 +71,9 @@ public class CategoryController {
     }
 
     /**
-     * 删除分类
+     * 删除分类（仅管理员）
      */
+    @RequireRole
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         categoryService.delete(id);

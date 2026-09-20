@@ -65,6 +65,11 @@ public class RankingDetailResponse {
 
         private BigDecimal agreeRate;
 
+        /**
+         * 当前用户投票态：1认同，-1反对，null未投
+         */
+        private Integer myVoteType;
+
         private Integer reasonCount;
 
         private Long creatorId;
@@ -90,6 +95,11 @@ public class RankingDetailResponse {
         private BigDecimal agreeRate;
 
         private Integer currentRank;
+
+        /**
+         * 当前用户投票态：1认同，-1反对，null未投
+         */
+        private Integer myVoteType;
 
         private Long creatorId;
 

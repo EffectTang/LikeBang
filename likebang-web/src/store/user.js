@@ -7,7 +7,9 @@ export const useUserStore = defineStore('user', {
     userInfo: JSON.parse(localStorage.getItem('lb_user') || 'null')
   }),
   getters: {
-    isLogin: state => !!state.token
+    isLogin: state => !!state.token,
+    // 角色：0普通用户，1管理员（仅用于前端渲染控制，安全边界在后端）
+    isAdmin: state => state.userInfo?.role === 1
   },
   actions: {
     async login(form) {

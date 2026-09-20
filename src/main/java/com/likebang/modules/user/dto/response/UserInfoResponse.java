@@ -25,6 +25,11 @@ public class UserInfoResponse {
 
     private Integer status;
 
+    /**
+     * 角色：0普通用户，1管理员
+     */
+    private Integer role;
+
     private LocalDateTime createdAt;
 
     public static UserInfoResponse from(SysUser user) {
@@ -36,6 +41,7 @@ public class UserInfoResponse {
         response.setEmail(user.getEmail());
         response.setPhone(user.getPhone());
         response.setStatus(user.getStatus());
+        response.setRole(user.getRole());
         response.setCreatedAt(user.getCreatedAt());
         return response;
     }
