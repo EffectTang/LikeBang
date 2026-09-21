@@ -15,6 +15,11 @@ import java.io.Serializable;
 public class PageParam implements Serializable {
 
     /**
+     * 每页数量上限，防止恶意超大 size 拖库
+     */
+    private static final long MAX_SIZE = 100L;
+
+    /**
      * 页码，从1开始
      */
     private Long current = 1L;
@@ -30,11 +35,12 @@ public class PageParam implements Serializable {
     private String keyword;
 
     /**
-     * 转成 MyBatis-Plus 的 Page 对象
+     * 转成 MyBatis-Plus 的 Page 对象：各分页接口统一经此构建，
+     * 集中做非法值兜底与 size 上限钳制
      */
     public <T> Page<T> toPage() {
         long c = current == null || current < 1 ? 1L : current;
-        long s = size == null || size < 1 ? 10L : size;
+        long s = size == null || size < 1 ? 10L : Math.min(size, MAX_SIZE);
         return new Page<>(c, s);
     }
 }

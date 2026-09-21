@@ -12,6 +12,7 @@ import com.likebang.common.result.ResultCode;
 import com.likebang.common.utils.DateTimeUtils;
 import com.likebang.common.utils.UserContext;
 import com.likebang.modules.ranking.dto.request.RankingCreateRequest;
+import com.likebang.modules.ranking.dto.request.RankingUpdateRequest;
 import com.likebang.modules.ranking.dto.request.ReasonCreateRequest;
 import com.likebang.modules.ranking.dto.request.ReasonUpdateRequest;
 import com.likebang.modules.ranking.dto.response.RankingDetailResponse;
@@ -147,20 +148,46 @@ public class RankingServiceImpl implements RankingService {
         if (categoryId != null) {
             wrapper.eq(Ranking::getCategoryId, categoryId);
         }
-        if (StrUtil.isNotBlank(pageParam.getKeyword())) {
-            wrapper.and(w -> w.like(Ranking::getTitle, pageParam.getKeyword())
-                    .or().like(Ranking::getDescription, pageParam.getKeyword()));
-        }
+        applyKeyword(wrapper, pageParam.getKeyword());
         wrapper.orderByDesc(Ranking::getCreatedAt);
+        return toResponsePage(pageParam, wrapper);
+    }
 
-        Page<Ranking> page = rankingMapper.selectPage(
-                new Page<>(pageParam.getCurrent(), pageParam.getSize()), wrapper);
+    @Override
+    public IPage<RankingResponse> pageMine(PageParam pageParam, Integer status, LoginUser operator) {
+        if (operator == null) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED);
+        }
+        LambdaQueryWrapper<Ranking> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Ranking::getCreatorId, operator.getUserId())
+                .ne(Ranking::getStatus, STATUS_DELETED);
+        if (status != null) {
+            wrapper.eq(Ranking::getStatus, status);
+        }
+        applyKeyword(wrapper, pageParam.getKeyword());
+        wrapper.orderByDesc(Ranking::getCreatedAt);
+        return toResponsePage(pageParam, wrapper);
+    }
+
+    private void applyKeyword(LambdaQueryWrapper<Ranking> wrapper, String keyword) {
+        if (StrUtil.isNotBlank(keyword)) {
+            wrapper.and(w -> w.like(Ranking::getTitle, keyword)
+                    .or().like(Ranking::getDescription, keyword));
+        }
+    }
+
+    /**
+     * 榜单分页查询公共尾部：执行分页并补齐创建者昵称与分类名
+     */
+    private IPage<RankingResponse> toResponsePage(PageParam pageParam, LambdaQueryWrapper<Ranking> wrapper) {
+        // 统一经 PageParam.toPage() 构建：非法页码兜底 + size 上限钳制
+        Page<Ranking> page = rankingMapper.selectPage(pageParam.toPage(), wrapper);
 
         Map<Long, String> nicknames = nicknameMap(
                 page.getRecords().stream().map(Ranking::getCreatorId).collect(Collectors.toSet()));
         Map<Long, String> categoryNames = categoryNameMap(
                 page.getRecords().stream().map(Ranking::getCategoryId)
-                        .filter(java.util.Objects::nonNull).collect(Collectors.toSet()));
+                        .filter(Objects::nonNull).collect(Collectors.toSet()));
 
         return page.convert(r -> {
             RankingResponse response = new RankingResponse();
@@ -278,6 +305,62 @@ public class RankingServiceImpl implements RankingService {
         Ranking update = new Ranking();
         update.setId(id);
         update.setStatus(STATUS_DELETED);
+        update.setUpdatedAt(DateTimeUtils.now());
+        rankingMapper.updateById(update);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void update(Long id, RankingUpdateRequest request, LoginUser operator) {
+        if (operator == null) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED);
+        }
+        Ranking ranking = rankingMapper.selectById(id);
+        if (ranking == null || ranking.getStatus() == STATUS_DELETED) {
+            throw new BusinessException(ResultCode.NOT_FOUND.getCode(), "榜单不存在");
+        }
+        boolean isOwner = ranking.getCreatorId() != null
+                && ranking.getCreatorId().equals(operator.getUserId());
+        if (!isOwner && !operator.isAdmin()) {
+            throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "无权修改该榜单");
+        }
+
+        // 局部更新：只写实际变更的列，避免整档回写覆盖并发修改（与 CategoryServiceImpl 同一写法）
+        Ranking update = new Ranking();
+        update.setId(id);
+        boolean changed = false;
+        if (request.getTitle() != null) {
+            if (StrUtil.isBlank(request.getTitle())) {
+                throw new BusinessException(ResultCode.BAD_REQUEST.getCode(), "榜单标题不能为空");
+            }
+            update.setTitle(request.getTitle().trim());
+            changed = true;
+        }
+        if (request.getDescription() != null) {
+            update.setDescription(request.getDescription());
+            changed = true;
+        }
+        if (request.getCategoryId() != null) {
+            update.setCategoryId(request.getCategoryId());
+            changed = true;
+        }
+        if (request.getItemLimit() != null) {
+            int itemCount = ranking.getItemCount() == null ? 0 : ranking.getItemCount();
+            if (request.getItemLimit() < itemCount) {
+                throw new BusinessException(ResultCode.BAD_REQUEST.getCode(),
+                        "最大排名项数量不能小于当前排名项数量（" + itemCount + "）");
+            }
+            update.setItemLimit(request.getItemLimit());
+            changed = true;
+        }
+        if (request.getVisibility() != null) {
+            update.setVisibility(request.getVisibility());
+            changed = true;
+        }
+        if (!changed) {
+            return;
+        }
+
         update.setUpdatedAt(DateTimeUtils.now());
         rankingMapper.updateById(update);
     }

@@ -20,6 +20,16 @@ export function deleteRanking(id) {
   return request.delete(`/rankings/${id}`)
 }
 
+// 我创建的榜单（分页，排除已删除）
+export function listMyRankings(params) {
+  return request.get('/rankings/mine', { params })
+}
+
+// 编辑榜单元数据（创建者本人或管理员；null 字段不修改）
+export function updateRanking(id, data) {
+  return request.put(`/rankings/${id}`, data)
+}
+
 // 为某排名项新增推荐理由
 export function addReason(rankingId, itemId, content) {
   return request.post(`/rankings/${rankingId}/items/${itemId}/reasons`, { content })

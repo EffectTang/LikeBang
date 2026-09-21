@@ -3,6 +3,7 @@ package com.likebang.modules.ranking.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.likebang.common.dto.PageParam;
 import com.likebang.common.exception.BusinessException;
@@ -16,10 +17,12 @@ import com.likebang.modules.ranking.mapper.RankingCategoryMapper;
 import com.likebang.modules.ranking.service.CategoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -41,8 +44,8 @@ public class CategoryServiceImpl implements CategoryService {
         wrapper.orderByAsc(RankingCategory::getSort)
                 .orderByDesc(RankingCategory::getCreatedAt);
 
-        Page<RankingCategory> page = categoryMapper.selectPage(
-                new Page<>(pageParam.getCurrent(), pageParam.getSize()), wrapper);
+        // 统一经 PageParam.toPage() 构建：非法页码兜底 + size 上限钳制
+        Page<RankingCategory> page = categoryMapper.selectPage(pageParam.toPage(), wrapper);
 
         return page.convert(this::convert);
     }
@@ -79,7 +82,12 @@ public class CategoryServiceImpl implements CategoryService {
         BeanUtils.copyProperties(request, category);
         category.setCreatedAt(DateTimeUtils.now());
         category.setUpdatedAt(DateTimeUtils.now());
-        categoryMapper.insert(category);
+        try {
+            categoryMapper.insert(category);
+        } catch (DuplicateKeyException e) {
+            // 应用层查重挡不住并发（check-then-act），uk_name 唯一键是最终防线
+            throw new BusinessException(ResultCode.BAD_REQUEST.getCode(), "分类名称已存在");
+        }
     }
 
     @Override
@@ -90,32 +98,47 @@ public class CategoryServiceImpl implements CategoryService {
             throw new BusinessException(ResultCode.NOT_FOUND.getCode(), "分类不存在");
         }
 
-        if (StrUtil.isNotBlank(request.getName()) && !request.getName().equals(category.getName())) {
-            LambdaQueryWrapper<RankingCategory> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(RankingCategory::getName, request.getName())
-                    .ne(RankingCategory::getId, id);
-            Long count = categoryMapper.selectCount(wrapper);
+        // 局部更新：只写实际变更的列，避免整档回写覆盖他人并发修改（丢失更新）
+        RankingCategory update = new RankingCategory();
+        update.setId(id);
+
+        // 改名需与他档查重（自身同值不改），并发改名由 uk_name 唯一键兜底
+        boolean renaming = StrUtil.isNotBlank(request.getName())
+                && !Objects.equals(request.getName(), category.getName());
+        if (renaming) {
+            Long count = categoryMapper.selectCount(Wrappers.<RankingCategory>lambdaQuery()
+                    .eq(RankingCategory::getName, request.getName())
+                    .ne(RankingCategory::getId, id));
             if (count != null && count > 0) {
                 throw new BusinessException(ResultCode.BAD_REQUEST.getCode(), "分类名称已存在");
             }
-            category.setName(request.getName());
+            update.setName(request.getName());
         }
-
         if (request.getDescription() != null) {
-            category.setDescription(request.getDescription());
+            update.setDescription(request.getDescription());
         }
         if (request.getIconUrl() != null) {
-            category.setIconUrl(request.getIconUrl());
+            update.setIconUrl(request.getIconUrl());
         }
         if (request.getSort() != null) {
-            category.setSort(request.getSort());
+            update.setSort(request.getSort());
         }
         if (request.getStatus() != null) {
-            category.setStatus(request.getStatus());
+            update.setStatus(request.getStatus());
         }
 
-        category.setUpdatedAt(DateTimeUtils.now());
-        categoryMapper.updateById(category);
+        // 仅传名称且与库中一致时，无任何字段需要更新
+        if (update.getName() == null && update.getDescription() == null && update.getIconUrl() == null
+                && update.getSort() == null && update.getStatus() == null) {
+            return;
+        }
+
+        update.setUpdatedAt(DateTimeUtils.now());
+        try {
+            categoryMapper.updateById(update);
+        } catch (DuplicateKeyException e) {
+            throw new BusinessException(ResultCode.BAD_REQUEST.getCode(), "分类名称已存在");
+        }
     }
 
     @Override

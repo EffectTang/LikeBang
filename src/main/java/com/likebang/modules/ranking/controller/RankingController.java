@@ -5,6 +5,7 @@ import com.likebang.common.dto.PageParam;
 import com.likebang.common.result.Result;
 import com.likebang.common.utils.UserContext;
 import com.likebang.modules.ranking.dto.request.RankingCreateRequest;
+import com.likebang.modules.ranking.dto.request.RankingUpdateRequest;
 import com.likebang.modules.ranking.dto.request.ReasonCreateRequest;
 import com.likebang.modules.ranking.dto.request.ReasonUpdateRequest;
 import com.likebang.modules.ranking.dto.request.VoteRequest;
@@ -44,6 +45,26 @@ public class RankingController {
             @ModelAttribute PageParam pageParam,
             @RequestParam(required = false) Long categoryId) {
         return Result.success(rankingService.pagePublic(pageParam, categoryId));
+    }
+
+    /**
+     * 我创建的榜单（分页，排除已删除，需登录）
+     */
+    @GetMapping("/mine")
+    public Result<IPage<RankingResponse>> pageMine(
+            @ModelAttribute PageParam pageParam,
+            @RequestParam(required = false) Integer status) {
+        return Result.success(rankingService.pageMine(pageParam, status, UserContext.getLoginUser()));
+    }
+
+    /**
+     * 编辑榜单元数据（需登录）：仅创建者本人或管理员，null 字段不修改
+     */
+    @PutMapping("/{id}")
+    public Result<Void> update(@PathVariable Long id,
+                               @Valid @RequestBody RankingUpdateRequest request) {
+        rankingService.update(id, request, UserContext.getLoginUser());
+        return Result.success();
     }
 
     /**

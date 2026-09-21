@@ -1,10 +1,9 @@
 <template>
-  <div class="community">
-    <!-- 顶部操作栏 -->
+  <div class="my-rankings">
     <div class="toolbar">
       <div class="toolbar-left">
-        <h2 class="page-title">发现榜单</h2>
-        <span class="page-sub">看看大家在排什么，也发起一个你的观点榜</span>
+        <h2 class="page-title">我的榜单</h2>
+        <span class="page-sub">你发起的全部榜单，可直接编辑或删除</span>
       </div>
       <div class="toolbar-right">
         <el-input
@@ -16,56 +15,50 @@
           @keyup.enter="reload"
           @clear="reload"
         />
-        <el-button type="primary" :icon="Plus" @click="openCreate">发起榜单</el-button>
+        <el-button type="primary" :icon="Plus" @click="goCommunity">发起榜单</el-button>
       </div>
     </div>
 
-    <!-- 分类筛选 -->
-    <div class="category-bar">
-      <el-tag
-        :effect="query.categoryId == null ? 'dark' : 'plain'"
-        class="cat-tag"
-        @click="selectCategory(null)"
-      >
-        全部
-      </el-tag>
-      <el-tag
-        v-for="c in categories"
-        :key="c.id"
-        :effect="query.categoryId === c.id ? 'dark' : 'plain'"
-        class="cat-tag"
-        @click="selectCategory(c.id)"
-      >
-        {{ c.name }}
-      </el-tag>
+    <!-- 状态筛选 -->
+    <div class="status-bar">
+      <el-radio-group v-model="query.status" @change="reload">
+        <el-radio-button :value="null">全部</el-radio-button>
+        <el-radio-button :value="1">已发布</el-radio-button>
+        <el-radio-button :value="0">草稿</el-radio-button>
+        <el-radio-button :value="2">已下架</el-radio-button>
+      </el-radio-group>
     </div>
 
-    <!-- 榜单卡片列表 -->
     <el-skeleton v-if="loading && list.length === 0" :rows="4" animated />
-    <el-empty v-else-if="list.length === 0" description="还没有榜单，快来发起第一个吧" />
+    <el-empty v-else-if="list.length === 0" description="还没有创建过榜单，去「发现榜单」发起第一个吧" />
     <div v-else class="card-grid" v-loading="loading">
-      <el-card
-        v-for="r in list"
-        :key="r.id"
-        class="ranking-card"
-        shadow="hover"
-        @click="goDetail(r.id)"
-      >
-        <div class="card-title">{{ r.title }}</div>
+      <el-card v-for="r in list" :key="r.id" class="ranking-card" shadow="hover">
+        <div class="card-title" @click="goDetail(r.id)">
+          <span class="title-text">{{ r.title }}</span>
+          <el-tag size="small" :type="statusTagType(r.status)">{{ statusText(r.status) }}</el-tag>
+          <el-tag v-if="r.visibility === 0" size="small" type="info">私有</el-tag>
+          <el-tag v-else-if="r.visibility === 2" size="small" type="info">仅链接</el-tag>
+        </div>
         <div class="card-desc">{{ r.description || '暂无描述' }}</div>
         <div class="card-meta">
           <span>🏆 Top {{ r.itemLimit }}</span>
-          <span>👁 {{ r.viewCount }}</span>
           <span>💬 {{ r.itemCount }} 项</span>
+          <span>👁 {{ r.viewCount }}</span>
+          <span>🙋 {{ r.participantCount || 0 }} 人参与</span>
         </div>
         <div class="card-footer">
-          <el-tag v-if="r.categoryName" size="small" type="info">{{ r.categoryName }}</el-tag>
-          <span class="creator">@{{ r.creatorNickname || '匿名' }}</span>
+          <div class="footer-left">
+            <el-tag v-if="r.categoryName" size="small" type="info">{{ r.categoryName }}</el-tag>
+            <span class="time">{{ formatDate(r.createdAt) }}</span>
+          </div>
+          <div class="footer-ops">
+            <el-button link type="primary" size="small" :icon="EditPen" @click="openEdit(r)">编辑</el-button>
+            <el-button link type="danger" size="small" :icon="Delete" @click="handleDelete(r)">删除</el-button>
+          </div>
         </div>
       </el-card>
     </div>
 
-    <!-- 分页 -->
     <div class="pager" v-if="total > 0">
       <span class="page-info">第 {{ query.current }} / {{ totalPages }} 页 · 共 {{ total }} 条</span>
       <el-pagination
@@ -80,30 +73,30 @@
       />
     </div>
 
-    <ranking-create-dialog ref="createDialogRef" :categories="categories" @created="onCreated" />
+    <ranking-edit-dialog ref="editDialogRef" @updated="loadList" />
   </div>
 </template>
 
 <script setup>
 import { computed, reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, Plus } from '@element-plus/icons-vue'
-import { listPublicRankings, listCategories } from '@/api/ranking'
-import RankingCreateDialog from '@/components/RankingCreateDialog.vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Plus, EditPen, Delete } from '@element-plus/icons-vue'
+import { listMyRankings, deleteRanking } from '@/api/ranking'
+import RankingEditDialog from '@/components/RankingEditDialog.vue'
 
 const router = useRouter()
 
 const loading = ref(false)
 const list = ref([])
 const total = ref(0)
-const categories = ref([])
-const createDialogRef = ref()
+const editDialogRef = ref()
 
 const query = reactive({
   current: 1,
   size: 12,
   keyword: '',
-  categoryId: null
+  status: null
 })
 
 // 后端全局 Long→String 序列化策略会把 total 下发成字符串，这里统一归一化为数字
@@ -113,11 +106,11 @@ const totalPages = computed(() =>
 async function loadList() {
   loading.value = true
   try {
-    const res = await listPublicRankings({
+    const res = await listMyRankings({
       current: query.current,
       size: query.size,
       keyword: query.keyword || undefined,
-      categoryId: query.categoryId || undefined
+      status: query.status ?? undefined
     })
     list.value = res.data.records
     total.value = Number(res.data.total) || 0
@@ -137,37 +130,48 @@ function onSizeChange(val) {
   reload()
 }
 
-function selectCategory(id) {
-  query.categoryId = id
-  reload()
+function statusText(status) {
+  const map = { 0: '草稿', 1: '已发布', 2: '已下架' }
+  return map[status] ?? status
+}
+
+function statusTagType(status) {
+  const map = { 0: 'info', 1: 'success', 2: 'warning' }
+  return map[status] ?? 'info'
+}
+
+function formatDate(value) {
+  if (!value) return ''
+  return String(value).slice(0, 10)
 }
 
 function goDetail(id) {
   router.push(`/rankings/${id}`)
 }
 
-function openCreate() {
-  createDialogRef.value.open()
+function goCommunity() {
+  router.push('/community')
 }
 
-function onCreated(id) {
-  reload()
-  if (id) router.push(`/rankings/${id}`)
+function openEdit(ranking) {
+  editDialogRef.value.open(ranking)
 }
 
-onMounted(async () => {
-  try {
-    const res = await listCategories()
-    categories.value = res.data
-  } catch (e) {
-    // 分类加载失败不阻塞榜单浏览
-  }
-  loadList()
-})
+function handleDelete(ranking) {
+  ElMessageBox.confirm(`确定要删除榜单「${ranking.title}」吗？删除后不可恢复。`, '提示', {
+    type: 'warning'
+  }).then(async () => {
+    await deleteRanking(ranking.id)
+    ElMessage.success('删除成功')
+    loadList()
+  }).catch(() => {})
+}
+
+onMounted(loadList)
 </script>
 
 <style scoped>
-.community {
+.my-rankings {
   max-width: 1080px;
   margin: 0 auto;
 }
@@ -194,14 +198,8 @@ onMounted(async () => {
 .search-input {
   width: 260px;
 }
-.category-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.status-bar {
   margin-bottom: 18px;
-}
-.cat-tag {
-  cursor: pointer;
 }
 .card-grid {
   display: grid;
@@ -209,13 +207,18 @@ onMounted(async () => {
   gap: 16px;
 }
 .ranking-card {
-  cursor: pointer;
   border-radius: 10px;
 }
 .card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 17px;
   font-weight: 600;
   margin-bottom: 8px;
+  cursor: pointer;
+}
+.title-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -245,9 +248,14 @@ onMounted(async () => {
   border-top: 1px solid #f0f0f0;
   padding-top: 10px;
 }
-.creator {
-  color: #409eff;
-  font-size: 13px;
+.footer-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.time {
+  color: #909399;
+  font-size: 12px;
 }
 .pager {
   display: flex;

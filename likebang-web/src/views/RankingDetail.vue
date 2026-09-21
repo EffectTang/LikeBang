@@ -9,14 +9,22 @@
       <div class="detail-header">
         <div class="detail-header-top">
           <h1 class="detail-title">{{ detail.title }}</h1>
-          <el-button
-            v-if="canDelete"
-            type="danger"
-            plain
-            size="small"
-            :icon="Delete"
-            @click="handleDelete"
-          >删除榜单</el-button>
+          <div v-if="canDelete" class="header-ops">
+            <el-button
+              type="primary"
+              plain
+              size="small"
+              :icon="EditPen"
+              @click="openEdit"
+            >编辑榜单</el-button>
+            <el-button
+              type="danger"
+              plain
+              size="small"
+              :icon="Delete"
+              @click="handleDelete"
+            >删除榜单</el-button>
+          </div>
         </div>
         <p class="detail-desc">{{ detail.description || '暂无描述' }}</p>
         <div class="detail-meta">
@@ -140,6 +148,9 @@
           </div>
         </el-card>
       </div>
+
+      <!-- 编辑榜单（仅本人或管理员，入口在头部） -->
+      <ranking-edit-dialog ref="editDialogRef" @updated="load" />
     </template>
   </div>
 </template>
@@ -160,6 +171,7 @@ import {
   voteReason,
   cancelReasonVote
 } from '@/api/ranking'
+import RankingEditDialog from '@/components/RankingEditDialog.vue'
 import { useUserStore } from '@/store/user'
 
 const route = useRoute()
@@ -169,13 +181,20 @@ const userStore = useUserStore()
 const loading = ref(false)
 const detail = ref(null)
 
-// ---- 榜单删除权限 ----
+// ---- 榜单删除/编辑权限：同一套归属判定（本人或管理员），后端双重校验 ----
 const canDelete = computed(() => {
   if (!detail.value) return false
   const myId = userStore.userInfo?.id
   const isOwner = myId != null && String(detail.value.creatorId) === String(myId)
   return userStore.isAdmin || isOwner
 })
+
+// ---- 编辑榜单 ----
+const editDialogRef = ref()
+
+function openEdit() {
+  editDialogRef.value.open(detail.value)
+}
 
 // ---- 理由编辑状态 ----
 const editingReasonId = ref(null)       // 正在编辑的理由 ID，null 表示无
@@ -351,6 +370,14 @@ onMounted(load)
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+.header-ops {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.header-ops .el-button + .el-button {
+  margin-left: 0;
 }
 .detail-title {
   margin: 0 0 8px;

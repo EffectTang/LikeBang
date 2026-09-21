@@ -21,6 +21,10 @@
             <el-icon><Compass /></el-icon>
             <span>发现榜单</span>
           </el-menu-item>
+          <el-menu-item index="/my-rankings" v-if="userStore.isLogin">
+            <el-icon><Collection /></el-icon>
+            <span>我的榜单</span>
+          </el-menu-item>
           <el-sub-menu index="admin" v-if="userStore.isAdmin">
             <template #title>
               <el-icon><Setting /></el-icon>
@@ -51,7 +55,7 @@
 <script setup>
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { DataBoard, User, Compass, Setting, Grid } from '@element-plus/icons-vue'
+import { DataBoard, User, Compass, Setting, Grid, Collection } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 
 const route = useRoute()

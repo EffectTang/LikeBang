@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.likebang.common.auth.LoginUser;
 import com.likebang.common.dto.PageParam;
 import com.likebang.modules.ranking.dto.request.RankingCreateRequest;
+import com.likebang.modules.ranking.dto.request.RankingUpdateRequest;
 import com.likebang.modules.ranking.dto.request.ReasonCreateRequest;
 import com.likebang.modules.ranking.dto.request.ReasonUpdateRequest;
 import com.likebang.modules.ranking.dto.response.RankingDetailResponse;
@@ -23,6 +24,16 @@ public interface RankingService {
      * 分页浏览公开榜单
      */
     IPage<RankingResponse> pagePublic(PageParam pageParam, Long categoryId);
+
+    /**
+     * 分页浏览我创建的榜单（排除已删除，可按状态筛选），返回含状态供前端展示
+     */
+    IPage<RankingResponse> pageMine(PageParam pageParam, Integer status, LoginUser operator);
+
+    /**
+     * 编辑榜单元数据（仅创建者本人或管理员）；null 字段不修改
+     */
+    void update(Long id, RankingUpdateRequest request, LoginUser operator);
 
     /**
      * 榜单详情（含排名项与理由），浏览量+1

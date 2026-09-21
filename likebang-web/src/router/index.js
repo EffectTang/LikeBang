@@ -17,6 +17,11 @@ const routes = [
     component: () => import('@/views/Community.vue')
   },
   {
+    path: '/my-rankings',
+    name: 'MyRankings',
+    component: () => import('@/views/MyRankings.vue')
+  },
+  {
     path: '/rankings/:id',
     name: 'RankingDetail',
     component: () => import('@/views/RankingDetail.vue')
