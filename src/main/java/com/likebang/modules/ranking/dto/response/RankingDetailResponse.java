@@ -97,6 +97,11 @@ public class RankingDetailResponse {
         private Integer currentRank;
 
         /**
+         * 评论数（楼中楼入口徽标）
+         */
+        private Integer commentCount;
+
+        /**
          * 当前用户投票态：1认同，-1反对，null未投
          */
         private Integer myVoteType;

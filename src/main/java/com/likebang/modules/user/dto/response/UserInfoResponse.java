@@ -26,11 +26,16 @@ public class UserInfoResponse {
     private Integer status;
 
     /**
-     * 角色：0普通用户，1管理员
+     * 角色：0普通用户，1管理员，2运营管理员（管理员授权）
      */
     private Integer role;
 
     private LocalDateTime createdAt;
+
+    /**
+     * 最后登录时间（管理后台用户列表展示）
+     */
+    private LocalDateTime lastLoginAt;
 
     public static UserInfoResponse from(SysUser user) {
         UserInfoResponse response = new UserInfoResponse();
@@ -43,6 +48,7 @@ public class UserInfoResponse {
         response.setStatus(user.getStatus());
         response.setRole(user.getRole());
         response.setCreatedAt(user.getCreatedAt());
+        response.setLastLoginAt(user.getLastLoginAt());
         return response;
     }
 }

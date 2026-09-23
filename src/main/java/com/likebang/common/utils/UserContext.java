@@ -42,6 +42,17 @@ public final class UserContext {
         return userId;
     }
 
+    /**
+     * 当前登录主体（含角色），无上下文直接抛错
+     */
+    public static LoginUser requireLoginUser() {
+        LoginUser loginUser = CURRENT.get();
+        if (loginUser == null) {
+            throw new IllegalStateException("当前请求无登录用户上下文");
+        }
+        return loginUser;
+    }
+
     public static void clear() {
         CURRENT.remove();
     }

@@ -25,18 +25,22 @@
             <el-icon><Collection /></el-icon>
             <span>我的榜单</span>
           </el-menu-item>
-          <el-sub-menu index="admin" v-if="userStore.isAdmin">
+          <el-sub-menu index="admin" v-if="userStore.canManageUsers">
             <template #title>
               <el-icon><Setting /></el-icon>
               <span>管理后台</span>
             </template>
-            <el-menu-item index="/admin/dashboard">
+            <el-menu-item index="/admin/dashboard" v-if="userStore.isAdmin">
               <el-icon><DataBoard /></el-icon>
               <span>仪表盘</span>
             </el-menu-item>
-            <el-menu-item index="/admin/categories">
+            <el-menu-item index="/admin/categories" v-if="userStore.isAdmin">
               <el-icon><Grid /></el-icon>
               <span>分类管理</span>
+            </el-menu-item>
+            <el-menu-item index="/admin/configs" v-if="userStore.isAdmin">
+              <el-icon><Tools /></el-icon>
+              <span>系统设置</span>
             </el-menu-item>
             <el-menu-item index="/admin/users">
               <el-icon><User /></el-icon>
@@ -55,7 +59,7 @@
 <script setup>
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { DataBoard, User, Compass, Setting, Grid, Collection } from '@element-plus/icons-vue'
+import { DataBoard, User, Compass, Setting, Grid, Collection, Tools } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 
 const route = useRoute()

@@ -6,76 +6,51 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * 排名项理由表 实体类
+ * 理由评论表 实体类
+ * 评论挂在理由之下（楼中楼），ranking_id/item_id 全链路冗余，风格同 ranking_reason_vote
  */
 @Data
-@TableName("ranking_reason")
-public class RankingReason implements Serializable {
+@TableName("ranking_reason_comment")
+public class RankingReasonComment implements Serializable {
 
     /**
-     * 理由ID，Snowflake生成
+     * 评论ID，Snowflake生成
      */
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
     /**
-     * 排名ID
+     * 排名ID（冗余，鉴权/级联自包含）
      */
     private Long rankingId;
 
     /**
-     * 排名项ID
+     * 排名项ID（冗余）
      */
     private Long itemId;
 
     /**
-     * 理由创建者ID
+     * 所属理由ID
+     */
+    private Long reasonId;
+
+    /**
+     * 评论者ID
      */
     private Long creatorId;
 
     /**
-     * 理由内容
+     * 评论内容
      */
     private String content;
 
     /**
-     * 认同数
+     * 点赞数（预留列，评论点赞二期随 vote 表一并实现）
      */
-    private Long agreeCount;
-
-    /**
-     * 反对数
-     */
-    private Long opposeCount;
-
-    /**
-     * 参与人数
-     */
-    private Long participantCount;
-
-    /**
-     * 认同率
-     */
-    private BigDecimal agreeRate;
-
-    /**
-     * 理由当前排名
-     */
-    private Integer currentRank;
-
-    /**
-     * 理由综合得分
-     */
-    private BigDecimal score;
-
-    /**
-     * 评论数
-     */
-    private Integer commentCount;
+    private Long likeCount;
 
     /**
      * 状态：0删除，1正常，2隐藏

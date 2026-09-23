@@ -36,9 +36,20 @@ public interface RankingService {
     void update(Long id, RankingUpdateRequest request, LoginUser operator);
 
     /**
-     * 榜单详情（含排名项与理由），浏览量+1
+     * 榜单详情（含排名项与每个项按认同数降序的理由 Top10），浏览量+1
      */
     RankingDetailResponse detail(Long id);
+
+    /**
+     * 指定排名项详情（排名项详情页主体，不含理由，理由走分页接口）
+     */
+    RankingDetailResponse.RankingItemResponse getItem(Long rankingId, Long itemId);
+
+    /**
+     * 指定排名项的全量理由（分页，按认同数降序，含当前用户投票态）
+     */
+    IPage<RankingDetailResponse.RankingReasonResponse> pageItemReasons(
+            Long rankingId, Long itemId, PageParam pageParam);
 
     /**
      * 删除榜单（软删除）：仅创建者本人或管理员可删

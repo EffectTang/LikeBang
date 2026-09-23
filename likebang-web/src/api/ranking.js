@@ -35,6 +35,31 @@ export function addReason(rankingId, itemId, content) {
   return request.post(`/rankings/${rankingId}/items/${itemId}/reasons`, { content })
 }
 
+// 某排名项详情（排名项页面主体）
+export function getRankingItem(rankingId, itemId) {
+  return request.get(`/rankings/${rankingId}/items/${itemId}`)
+}
+
+// 某排名项的全量理由（分页，按认同数降序）
+export function listItemReasons(rankingId, itemId, params) {
+  return request.get(`/rankings/${rankingId}/items/${itemId}/reasons`, { params })
+}
+
+// 发布理由评论（返回完整评论体，时间正序下可直接追加到流尾部）
+export function addReasonComment(reasonId, content) {
+  return request.post(`/rankings/reasons/${reasonId}/comments`, { content })
+}
+
+// 某理由的评论分页（时间正序）
+export function listReasonComments(reasonId, params) {
+  return request.get(`/rankings/reasons/${reasonId}/comments`, { params })
+}
+
+// 删除理由评论（本人或管理员）
+export function deleteReasonComment(commentId) {
+  return request.delete(`/rankings/comments/${commentId}`)
+}
+
 // 修改推荐理由
 export function updateReason(reasonId, content) {
   return request.put(`/rankings/reasons/${reasonId}`, { content })

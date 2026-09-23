@@ -24,4 +24,10 @@ public class AuthProperties {
      * Token 有效期（毫秒），默认 7 天
      */
     private long jwtTimeout = 7 * 24 * 60 * 60 * 1000L;
+
+    /**
+     * 内置超级管理员账号名（schema.sql 播种的 admin）：
+     * 该账号不可被任何人禁用/删除/变更角色，防止权限体系被锁死或夺舍
+     */
+    private String superAdminUsername = "admin";
 }

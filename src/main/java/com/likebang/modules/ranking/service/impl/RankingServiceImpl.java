@@ -30,6 +30,8 @@ import com.likebang.modules.ranking.mapper.RankingMapper;
 import com.likebang.modules.ranking.mapper.RankingReasonMapper;
 import com.likebang.modules.ranking.mapper.RankingReasonVoteMapper;
 import com.likebang.modules.ranking.service.RankingService;
+import com.likebang.modules.system.constant.ConfigKeys;
+import com.likebang.modules.system.service.SysConfigService;
 import com.likebang.modules.user.entity.SysUser;
 import com.likebang.modules.user.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
@@ -62,8 +64,6 @@ public class RankingServiceImpl implements RankingService {
     private static final int REASON_DELETED = 0;
     /** 可见性：公开 */
     private static final int VISIBILITY_PUBLIC = 1;
-    /** 详情理由列表最多展示条数 */
-    private static final int REASON_LIMIT = 10;
 
     private final RankingMapper rankingMapper;
     private final RankingItemMapper rankingItemMapper;
@@ -72,6 +72,7 @@ public class RankingServiceImpl implements RankingService {
     private final RankingItemVoteMapper rankingItemVoteMapper;
     private final RankingReasonVoteMapper rankingReasonVoteMapper;
     private final SysUserMapper sysUserMapper;
+    private final SysConfigService sysConfigService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -233,11 +234,14 @@ public class RankingServiceImpl implements RankingService {
             return response;
         }
 
+        // 理由按认同数降序（同数按创建先后稳定排序）：详情每个项取 Top N（N 由配置中心驱动），弹窗全量分页同一口径。
+        // 注：不用 current_rank 排序——它是创建时序号，物化重排留给得分算法迭代统一处理
         List<RankingReason> reasons = rankingReasonMapper.selectList(
                 new LambdaQueryWrapper<RankingReason>()
                         .eq(RankingReason::getRankingId, id)
                         .eq(RankingReason::getStatus, 1)
-                        .orderByAsc(RankingReason::getCurrentRank));
+                        .orderByDesc(RankingReason::getAgreeCount)
+                        .orderByAsc(RankingReason::getCreatedAt));
 
         // 批量补齐昵称（榜单创建者 + 项创建者 + 理由创建者）
         Set<Long> userIds = new HashSet<>();
@@ -264,6 +268,10 @@ public class RankingServiceImpl implements RankingService {
                 .collect(Collectors.toMap(RankingReasonVote::getReasonId,
                         RankingReasonVote::getVoteType, (a, b) -> a));
 
+        // 每个排名项详情页理由展示条数由配置中心驱动（管理员可调），DB 无值/非法时回落默认值
+        final int reasonLimit = sysConfigService.getInt(
+                ConfigKeys.RANKING_DETAIL_REASON_LIMIT, ConfigKeys.DEFAULT_RANKING_DETAIL_REASON_LIMIT);
+
         response.setItems(items.stream().map(item -> {
             RankingDetailResponse.RankingItemResponse itemResponse =
                     new RankingDetailResponse.RankingItemResponse();
@@ -271,18 +279,103 @@ public class RankingServiceImpl implements RankingService {
             itemResponse.setCreatorNickname(nicknames.get(item.getCreatorId()));
             itemResponse.setMyVoteType(myItemVotes.get(item.getId()));
             itemResponse.setReasons(reasonsByItem.getOrDefault(item.getId(), List.of())
-                    .stream().limit(REASON_LIMIT).map(reason -> {
-                        RankingDetailResponse.RankingReasonResponse reasonResponse =
-                                new RankingDetailResponse.RankingReasonResponse();
-                        BeanUtils.copyProperties(reason, reasonResponse);
-                        reasonResponse.setCreatorNickname(
-                                nicknames.get(reason.getCreatorId()));
-                        reasonResponse.setMyVoteType(myReasonVotes.get(reason.getId()));
-                        return reasonResponse;
-                    }).collect(Collectors.toList()));
+                    .stream().limit(reasonLimit).map(reason ->
+                            toReasonResponse(reason, nicknames, myReasonVotes))
+                    .collect(Collectors.toList()));
             return itemResponse;
         }).collect(Collectors.toList()));
 
+        return response;
+    }
+
+    @Override
+    public RankingDetailResponse.RankingItemResponse getItem(Long rankingId, Long itemId) {
+        loadPublishedRanking(rankingId);
+        RankingItem item = requireItemInRanking(rankingId, itemId);
+
+        Map<Long, String> nicknames = nicknameMap(Collections.singleton(item.getCreatorId()));
+        Long currentUserId = UserContext.getUserId();
+        Integer myVoteType = currentUserId == null ? null
+                : rankingItemVoteMapper.selectList(Wrappers.<RankingItemVote>lambdaQuery()
+                        .eq(RankingItemVote::getItemId, itemId)
+                        .eq(RankingItemVote::getUserId, currentUserId)).stream()
+                .map(RankingItemVote::getVoteType).findFirst().orElse(null);
+
+        RankingDetailResponse.RankingItemResponse response =
+                new RankingDetailResponse.RankingItemResponse();
+        BeanUtils.copyProperties(item, response);
+        response.setCreatorNickname(nicknames.get(item.getCreatorId()));
+        response.setMyVoteType(myVoteType);
+        return response;
+    }
+
+    @Override
+    public IPage<RankingDetailResponse.RankingReasonResponse> pageItemReasons(
+            Long rankingId, Long itemId, PageParam pageParam) {
+        loadPublishedRanking(rankingId);
+        requireItemInRanking(rankingId, itemId);
+
+        // 与详情 Top10 同一排序口径，分页浏览可全局连续
+        Page<RankingReason> page = rankingReasonMapper.selectPage(pageParam.toPage(),
+                new LambdaQueryWrapper<RankingReason>()
+                        .eq(RankingReason::getRankingId, rankingId)
+                        .eq(RankingReason::getItemId, itemId)
+                        .eq(RankingReason::getStatus, ITEM_REASON_NORMAL)
+                        .orderByDesc(RankingReason::getAgreeCount)
+                        .orderByAsc(RankingReason::getCreatedAt));
+
+        List<RankingReason> records = page.getRecords();
+        Map<Long, String> nicknames = nicknameMap(records.stream()
+                .map(RankingReason::getCreatorId).collect(Collectors.toSet()));
+
+        Long currentUserId = UserContext.getUserId();
+        Map<Long, Integer> myVotes = currentUserId == null ? Map.of()
+                : rankingReasonVoteMapper.selectList(Wrappers.<RankingReasonVote>lambdaQuery()
+                        .eq(RankingReasonVote::getRankingId, rankingId)
+                        .eq(RankingReasonVote::getUserId, currentUserId)).stream()
+                .collect(Collectors.toMap(RankingReasonVote::getReasonId,
+                        RankingReasonVote::getVoteType, (a, b) -> a));
+
+        return page.convert(r -> toReasonResponse(r, nicknames, myVotes));
+    }
+
+    /**
+     * 加载已发布榜单（排名项子页面类接口共用：榜单不存在/已删 404，未发布 403）
+     */
+    private Ranking loadPublishedRanking(Long rankingId) {
+        Ranking ranking = rankingMapper.selectById(rankingId);
+        if (ranking == null || ranking.getStatus() == STATUS_DELETED) {
+            throw new BusinessException(ResultCode.NOT_FOUND.getCode(), "榜单不存在");
+        }
+        if (ranking.getStatus() != STATUS_PUBLISHED) {
+            throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "榜单未发布");
+        }
+        return ranking;
+    }
+
+    /**
+     * 校验排名项存在且归属该榜单
+     */
+    private RankingItem requireItemInRanking(Long rankingId, Long itemId) {
+        RankingItem item = rankingItemMapper.selectById(itemId);
+        if (item == null
+                || !Objects.equals(item.getRankingId(), rankingId)
+                || !Objects.equals(item.getStatus(), ITEM_REASON_NORMAL)) {
+            throw new BusinessException(ResultCode.NOT_FOUND.getCode(), "排名项不存在");
+        }
+        return item;
+    }
+
+    /**
+     * 理由实体 → 响应（补昵称与当前用户投票态），详情 Top10 与全量分页共用
+     */
+    private RankingDetailResponse.RankingReasonResponse toReasonResponse(
+            RankingReason reason, Map<Long, String> nicknames, Map<Long, Integer> myVotes) {
+        RankingDetailResponse.RankingReasonResponse response =
+                new RankingDetailResponse.RankingReasonResponse();
+        BeanUtils.copyProperties(reason, response);
+        response.setCreatorNickname(nicknames.get(reason.getCreatorId()));
+        response.setMyVoteType(myVotes.get(reason.getId()));
         return response;
     }
 

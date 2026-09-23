@@ -4,15 +4,18 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.likebang.common.dto.PageParam;
 import com.likebang.common.result.Result;
 import com.likebang.common.utils.UserContext;
+import com.likebang.modules.ranking.dto.request.CommentCreateRequest;
 import com.likebang.modules.ranking.dto.request.RankingCreateRequest;
 import com.likebang.modules.ranking.dto.request.RankingUpdateRequest;
 import com.likebang.modules.ranking.dto.request.ReasonCreateRequest;
 import com.likebang.modules.ranking.dto.request.ReasonUpdateRequest;
 import com.likebang.modules.ranking.dto.request.VoteRequest;
+import com.likebang.modules.ranking.dto.response.CommentResponse;
 import com.likebang.modules.ranking.dto.response.RankingDetailResponse;
 import com.likebang.modules.ranking.dto.response.RankingResponse;
 import com.likebang.modules.ranking.dto.response.VoteResponse;
 import com.likebang.modules.ranking.service.RankingService;
+import com.likebang.modules.ranking.service.ReasonCommentService;
 import com.likebang.modules.ranking.service.VoteService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +31,7 @@ public class RankingController {
 
     private final RankingService rankingService;
     private final VoteService voteService;
+    private final ReasonCommentService reasonCommentService;
 
     /**
      * 创建榜单（需登录）
@@ -68,11 +72,31 @@ public class RankingController {
     }
 
     /**
-     * 榜单详情
+     * 榜单详情（每个排名项附认同数降序的理由 Top10）
      */
     @GetMapping("/{id}")
     public Result<RankingDetailResponse> detail(@PathVariable Long id) {
         return Result.success(rankingService.detail(id));
+    }
+
+    /**
+     * 某排名项详情（排名项页面主体，需登录）
+     */
+    @GetMapping("/{id}/items/{itemId}")
+    public Result<RankingDetailResponse.RankingItemResponse> getItem(
+            @PathVariable Long id, @PathVariable Long itemId) {
+        return Result.success(rankingService.getItem(id, itemId));
+    }
+
+    /**
+     * 某排名项的全量理由（分页，认同数降序，需登录）
+     */
+    @GetMapping("/{id}/items/{itemId}/reasons")
+    public Result<IPage<RankingDetailResponse.RankingReasonResponse>> pageItemReasons(
+            @PathVariable Long id,
+            @PathVariable Long itemId,
+            @ModelAttribute PageParam pageParam) {
+        return Result.success(rankingService.pageItemReasons(id, itemId, pageParam));
     }
 
     /**
@@ -147,5 +171,33 @@ public class RankingController {
     @DeleteMapping("/reasons/{reasonId}/vote")
     public Result<VoteResponse> cancelReasonVote(@PathVariable Long reasonId) {
         return Result.success(voteService.cancelReasonVote(reasonId, UserContext.getLoginUser()));
+    }
+
+    /**
+     * 发布理由评论（需登录，仅登录可见可发：不在免登录白名单）
+     */
+    @PostMapping("/reasons/{reasonId}/comments")
+    public Result<CommentResponse> addComment(@PathVariable Long reasonId,
+                                              @Valid @RequestBody CommentCreateRequest request) {
+        return Result.success(reasonCommentService.add(reasonId, request, UserContext.getLoginUser()));
+    }
+
+    /**
+     * 某理由的评论分页（时间正序，需登录）
+     */
+    @GetMapping("/reasons/{reasonId}/comments")
+    public Result<IPage<CommentResponse>> pageReasonComments(
+            @PathVariable Long reasonId,
+            @ModelAttribute PageParam pageParam) {
+        return Result.success(reasonCommentService.pageByReason(reasonId, pageParam));
+    }
+
+    /**
+     * 删除理由评论（仅评论者本人或管理员）
+     */
+    @DeleteMapping("/comments/{commentId}")
+    public Result<Void> deleteComment(@PathVariable Long commentId) {
+        reasonCommentService.delete(commentId, UserContext.getLoginUser());
+        return Result.success();
     }
 }

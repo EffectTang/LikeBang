@@ -58,7 +58,7 @@ public class SysUser implements Serializable {
     private Integer status;
 
     /**
-     * 角色：0普通用户，1管理员
+     * 角色：0普通用户，1管理员，2运营管理员（管理员授权）
      */
     private Integer role;
 

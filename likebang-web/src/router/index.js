@@ -27,6 +27,11 @@ const routes = [
     component: () => import('@/views/RankingDetail.vue')
   },
   {
+    path: '/rankings/:id/items/:itemId',
+    name: 'ItemDetail',
+    component: () => import('@/views/ItemDetail.vue')
+  },
+  {
     path: '/admin',
     redirect: '/admin/dashboard'
   },
@@ -34,19 +39,26 @@ const routes = [
     path: '/admin/dashboard',
     name: 'AdminDashboard',
     component: () => import('@/views/Dashboard.vue'),
-    meta: { adminOnly: true }
+    meta: { roles: [1] }
   },
   {
     path: '/admin/users',
     name: 'AdminUsers',
     component: () => import('@/views/user/UserList.vue'),
-    meta: { adminOnly: true }
+    // 管理员(1) + 运营管理员(2) 可进；页内再按角色隐藏越权操作按钮
+    meta: { roles: [1, 2] }
   },
   {
     path: '/admin/categories',
     name: 'AdminCategories',
     component: () => import('@/views/admin/CategoryList.vue'),
-    meta: { adminOnly: true }
+    meta: { roles: [1] }
+  },
+  {
+    path: '/admin/configs',
+    name: 'AdminConfigs',
+    component: () => import('@/views/admin/ConfigList.vue'),
+    meta: { roles: [1] }
   }
 ]
 
@@ -55,7 +67,7 @@ const router = createRouter({
   routes
 })
 
-// 全局前置守卫：未登录跳转登录页，已登录访问登录页跳转社区首页，非管理员拦截后台
+// 全局前置守卫：未登录跳转登录页，已登录访问登录页跳转社区首页，后台页按 meta.roles 拦截
 router.beforeEach(to => {
   const token = localStorage.getItem('lb_token')
   if (!to.meta?.public && !token) {
@@ -64,9 +76,9 @@ router.beforeEach(to => {
   if (to.path === '/login' && token) {
     return { path: '/community' }
   }
-  if (to.meta?.adminOnly) {
+  if (to.meta?.roles) {
     const user = JSON.parse(localStorage.getItem('lb_user') || 'null')
-    if (user?.role !== 1) {
+    if (!to.meta.roles.includes(user?.role)) {
       return { path: '/community' }
     }
   }

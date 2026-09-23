@@ -16,6 +16,8 @@ likebang:
     jwt-secret: ${JWT_SECRET:likebang-dev-jwt-secret-please-change-me-0123456789}
     # Token 有效期（毫秒），默认7天
     jwt-timeout: ${JWT_TIMEOUT:604800000}
+    # 内置超级管理员账号，不可被禁用/删除/改角色（与 schema.sql 播种账号保持一致）
+    super-admin-username: ${SUPER_ADMIN_USERNAME:admin}
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml

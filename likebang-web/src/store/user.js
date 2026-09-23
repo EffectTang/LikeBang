@@ -8,8 +8,10 @@ export const useUserStore = defineStore('user', {
   }),
   getters: {
     isLogin: state => !!state.token,
-    // 角色：0普通用户，1管理员（仅用于前端渲染控制，安全边界在后端）
-    isAdmin: state => state.userInfo?.role === 1
+    // 角色：0普通用户，1管理员，2运营管理员（仅用于前端渲染控制，安全边界在后端）
+    isAdmin: state => state.userInfo?.role === 1,
+    // 用户管理能力：管理员 + 被授权的运营管理员
+    canManageUsers: state => [1, 2].includes(state.userInfo?.role)
   },
   actions: {
     async login(form) {

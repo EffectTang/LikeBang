@@ -66,62 +66,72 @@
             </div>
           </div>
 
-          <!-- 理由列表 -->
+          <!-- 理由列表：后端按认同数降序只带 Top N（N 管理员可在系统设置配置）；"查看详情"跳转排名项独立页面，不受条数限制 -->
           <div class="reasons">
             <div class="reasons-title">
               <el-icon><ChatLineSquare /></el-icon>
-              推荐理由（{{ item.reasons?.length || 0 }}）
+              推荐理由（{{ item.reasonCount ?? item.reasons?.length ?? 0 }}）
+              <span v-if="item.reasons?.length" class="reasons-hint">按认同数排名，展示前 {{ item.reasons.length }} 条</span>
+              <el-button
+                link
+                type="primary"
+                size="small"
+                @click="openReasons(item)"
+              >查看详情</el-button>
             </div>
             <el-empty
               v-if="!item.reasons || item.reasons.length === 0"
               description="还没有理由"
               :image-size="40"
             />
-            <!-- 理由条目 -->
-            <div v-for="r in item.reasons" :key="r.id" class="reason">
-              <!-- 行内编辑模式 -->
-              <div v-if="editingReasonId === r.id" class="reason-edit">
-                <el-input
-                  v-model="editingReasonContent"
-                  type="textarea"
-                  :rows="2"
-                  maxlength="1000"
-                  show-word-limit
-                />
-                <div class="reason-edit-actions">
-                  <el-button size="small" @click="cancelEditReason">取消</el-button>
-                  <el-button size="small" type="primary" :loading="savingReason" @click="saveEditReason">保存</el-button>
+            <!-- 理由条目：名次徽章按认同数排名（后端已按 agreeCount 降序返回，下标+1 即排名） -->
+            <div v-for="(r, rIndex) in item.reasons" :key="r.id" class="reason">
+              <span class="reason-rank" :class="reasonRankClass(rIndex)">{{ rIndex + 1 }}</span>
+              <div class="reason-main">
+                <!-- 行内编辑模式 -->
+                <div v-if="editingReasonId === r.id" class="reason-edit">
+                  <el-input
+                    v-model="editingReasonContent"
+                    type="textarea"
+                    :rows="2"
+                    maxlength="1000"
+                    show-word-limit
+                  />
+                  <div class="reason-edit-actions">
+                    <el-button size="small" @click="cancelEditReason">取消</el-button>
+                    <el-button size="small" type="primary" :loading="savingReason" @click="saveEditReason">保存</el-button>
+                  </div>
                 </div>
+                <!-- 正常展示模式 -->
+                <template v-else>
+                  <div class="reason-content">{{ r.content }}</div>
+                  <div class="reason-footer">
+                    <div class="reason-meta">
+                      <span>@{{ r.creatorNickname || '匿名' }}</span>
+                      <span class="reason-vote">
+                        <el-button
+                          link
+                          size="small"
+                          :type="r.myVoteType === 1 ? 'success' : 'info'"
+                          :loading="votingMap['r' + r.id]"
+                          @click="handleReasonVote(r, 1)"
+                        >👍 {{ r.agreeCount }}</el-button>
+                        <el-button
+                          link
+                          size="small"
+                          :type="r.myVoteType === -1 ? 'danger' : 'info'"
+                          :loading="votingMap['r' + r.id]"
+                          @click="handleReasonVote(r, -1)"
+                        >👎 {{ r.opposeCount }}</el-button>
+                      </span>
+                    </div>
+                    <div v-if="canEditReason(r)" class="reason-ops">
+                      <el-button link size="small" :icon="EditPen" @click="startEditReason(r)">编辑</el-button>
+                      <el-button link size="small" type="danger" :icon="Delete" @click="handleDeleteReason(r.id)">删除</el-button>
+                    </div>
+                  </div>
+                </template>
               </div>
-              <!-- 正常展示模式 -->
-              <template v-else>
-                <div class="reason-content">{{ r.content }}</div>
-                <div class="reason-footer">
-                  <div class="reason-meta">
-                    <span>@{{ r.creatorNickname || '匿名' }}</span>
-                    <span class="reason-vote">
-                      <el-button
-                        link
-                        size="small"
-                        :type="r.myVoteType === 1 ? 'success' : 'info'"
-                        :loading="votingMap['r' + r.id]"
-                        @click="handleReasonVote(r, 1)"
-                      >👍 {{ r.agreeCount }}</el-button>
-                      <el-button
-                        link
-                        size="small"
-                        :type="r.myVoteType === -1 ? 'danger' : 'info'"
-                        :loading="votingMap['r' + r.id]"
-                        @click="handleReasonVote(r, -1)"
-                      >👎 {{ r.opposeCount }}</el-button>
-                    </span>
-                  </div>
-                  <div v-if="canEditReason(r)" class="reason-ops">
-                    <el-button link size="small" :icon="EditPen" @click="startEditReason(r)">编辑</el-button>
-                    <el-button link size="small" type="danger" :icon="Delete" @click="handleDeleteReason(r.id)">删除</el-button>
-                  </div>
-                </div>
-              </template>
             </div>
 
             <!-- 添加理由（仅登录用户可见） -->
@@ -196,6 +206,11 @@ function openEdit() {
   editDialogRef.value.open(detail.value)
 }
 
+// ---- 排名项详情页：主体+全量理由的独立页面（微博/贴吧式）----
+function openReasons(item) {
+  router.push(`/rankings/${route.params.id}/items/${item.id}`)
+}
+
 // ---- 理由编辑状态 ----
 const editingReasonId = ref(null)       // 正在编辑的理由 ID，null 表示无
 const editingReasonContent = ref('')    // 编辑框内容
@@ -211,6 +226,14 @@ function canEditReason(r) {
   if (!userStore.userInfo) return false
   return userStore.isAdmin ||
     (r.creatorId != null && String(r.creatorId) === String(userStore.userInfo.id))
+}
+
+// 理由名次徽章配色：前三名高亮（名次 = 认同数降序下的位置）
+function reasonRankClass(index) {
+  if (index === 0) return 'rank-1'
+  if (index === 1) return 'rank-2'
+  if (index === 2) return 'rank-3'
+  return ''
 }
 
 // ---- 理由操作 ----
@@ -461,12 +484,40 @@ onMounted(load)
   font-size: 13px;
   margin-bottom: 8px;
 }
+.reasons-hint {
+  font-size: 12px;
+  color: #c0c4cc;
+}
 .reason {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   background: #f7f9fc;
   border-radius: 8px;
   padding: 10px 12px;
   margin-bottom: 8px;
 }
+.reason-main {
+  flex: 1;
+  min-width: 0;
+}
+.reason-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: #c0c4cc;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.reason-rank.rank-1 { background: #f5a623; }
+.reason-rank.rank-2 { background: #a0a4ab; }
+.reason-rank.rank-3 { background: #cd7f32; }
 .reason-content {
   font-size: 14px;
   line-height: 1.6;
