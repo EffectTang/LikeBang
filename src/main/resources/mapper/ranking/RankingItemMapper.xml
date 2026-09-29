@@ -22,4 +22,21 @@
         WHERE id = #{itemId}
     </update>
 
+    <!--
+      来源作品名自动补全：站内历史去重，按最近使用优先（MAX(id) 降序，Snowflake 时间有序），
+      LIMIT 由 Service 钳定硬上限，防全表拖库。
+    -->
+    <select id="selectDistinctSourceNames" resultType="java.lang.String">
+        SELECT source_name
+        FROM ranking_item
+        WHERE source_name IS NOT NULL
+          AND source_name != ''
+        <if test="keyword != null and keyword != ''">
+            AND source_name LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        GROUP BY source_name
+        ORDER BY MAX(id) DESC
+        LIMIT #{limit}
+    </select>
+
 </mapper>

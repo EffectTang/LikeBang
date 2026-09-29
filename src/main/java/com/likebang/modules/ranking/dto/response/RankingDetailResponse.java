@@ -18,6 +18,8 @@ public class RankingDetailResponse {
 
     private String description;
 
+    private String coverUrl;
+
     private Long categoryId;
 
     private String categoryName;
@@ -53,6 +55,21 @@ public class RankingDetailResponse {
 
         private String imageUrl;
 
+        /**
+         * 来源类型 key（可空，展示名由 /rankings/source-types 字典接口映射）
+         */
+        private String sourceType;
+
+        /**
+         * 来源作品名称（可空，展示时包《》，存储不带书名号）
+         */
+        private String sourceName;
+
+        /**
+         * 来源补充说明（可空）
+         */
+        private String sourceDesc;
+
         private Integer currentRank;
 
         private BigDecimal score;
@@ -87,6 +104,11 @@ public class RankingDetailResponse {
         private Long id;
 
         private String content;
+
+        /**
+         * 理由配图（一期单图，可空）
+         */
+        private String imageUrl;
 
         private Long agreeCount;
 

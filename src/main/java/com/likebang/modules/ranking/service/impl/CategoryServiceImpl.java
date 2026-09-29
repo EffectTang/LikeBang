@@ -126,10 +126,14 @@ public class CategoryServiceImpl implements CategoryService {
         if (request.getStatus() != null) {
             update.setStatus(request.getStatus());
         }
+        if (request.getSourceEnabled() != null) {
+            update.setSourceEnabled(request.getSourceEnabled());
+        }
 
         // 仅传名称且与库中一致时，无任何字段需要更新
         if (update.getName() == null && update.getDescription() == null && update.getIconUrl() == null
-                && update.getSort() == null && update.getStatus() == null) {
+                && update.getSort() == null && update.getStatus() == null
+                && update.getSourceEnabled() == null) {
             return;
         }
 

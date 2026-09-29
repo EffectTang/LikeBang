@@ -7,6 +7,7 @@
     <template v-if="detail">
       <!-- 榜单头部 -->
       <div class="detail-header">
+        <img v-if="detail.coverUrl" :src="resolveImage(detail.coverUrl)" class="detail-cover" alt="封面" />
         <div class="detail-header-top">
           <h1 class="detail-title">{{ detail.title }}</h1>
           <div v-if="canDelete" class="header-ops">
@@ -42,8 +43,13 @@
             <div class="rank-badge" :class="rankClass(item.currentRank)">
               {{ item.currentRank }}
             </div>
+            <img v-if="item.imageUrl" :src="resolveImage(item.imageUrl)" class="item-thumb" alt="" @click="previewImage(resolveImage(item.imageUrl))" />
             <div class="item-info">
               <div class="item-name">{{ item.name }}</div>
+              <!-- 出处副标题：仅填了来源才显示；作品名统一重新包《》 -->
+              <div v-if="item.sourceName" class="item-source">
+                ——《{{ item.sourceName }}》<template v-if="item.sourceType"> · {{ sourceLabel(item.sourceType) }}</template>
+              </div>
               <div v-if="item.description" class="item-desc">{{ item.description }}</div>
             </div>
             <div class="item-stats">
@@ -97,6 +103,7 @@
                     maxlength="1000"
                     show-word-limit
                   />
+                  <image-upload v-model="editingReasonImage" label="更换配图" />
                   <div class="reason-edit-actions">
                     <el-button size="small" @click="cancelEditReason">取消</el-button>
                     <el-button size="small" type="primary" :loading="savingReason" @click="saveEditReason">保存</el-button>
@@ -105,6 +112,15 @@
                 <!-- 正常展示模式 -->
                 <template v-else>
                   <div class="reason-content">{{ r.content }}</div>
+                  <!-- 理由配图：一期一图，点击看大图 -->
+                  <div v-if="r.imageUrl" class="reason-image-wrap">
+                    <img
+                      :src="resolveImage(r.imageUrl)"
+                      class="reason-image"
+                      alt=""
+                      @click="previewImage(resolveImage(r.imageUrl))"
+                    />
+                  </div>
                   <div class="reason-footer">
                     <div class="reason-meta">
                       <span>@{{ r.creatorNickname || '匿名' }}</span>
@@ -145,6 +161,13 @@
                 placeholder="说说你的理由…"
                 @update:model-value="v => { reasonDrafts[item.id] = v }"
               />
+              <div class="add-reason-image">
+                <image-upload
+                  :model-value="reasonImageDrafts[item.id] ?? ''"
+                  label="添加配图（可选）"
+                  @update:model-value="v => { reasonImageDrafts[item.id] = v }"
+                />
+              </div>
               <div class="add-reason-actions">
                 <el-button
                   size="small"
@@ -161,6 +184,11 @@
 
       <!-- 编辑榜单（仅本人或管理员，入口在头部） -->
       <ranking-edit-dialog ref="editDialogRef" @updated="load" />
+
+      <!-- 排名项缩略图点击预览 -->
+      <el-dialog v-model="previewVisible" width="600px" append-to-body>
+        <img :src="previewUrl" style="width: 100%" alt="预览" />
+      </el-dialog>
     </template>
   </div>
 </template>
@@ -173,6 +201,7 @@ import { ChatLineSquare, Delete, EditPen } from '@element-plus/icons-vue'
 import {
   getRankingDetail,
   deleteRanking,
+  getSourceTypes,
   addReason as apiAddReason,
   updateReason as apiUpdateReason,
   deleteReason as apiDeleteReason,
@@ -182,6 +211,8 @@ import {
   cancelReasonVote
 } from '@/api/ranking'
 import RankingEditDialog from '@/components/RankingEditDialog.vue'
+import ImageUpload from '@/components/ImageUpload.vue'
+import { resolveImage } from '@/utils/image'
 import { useUserStore } from '@/store/user'
 
 const route = useRoute()
@@ -190,6 +221,15 @@ const userStore = useUserStore()
 
 const loading = ref(false)
 const detail = ref(null)
+
+// 排名项缩略图预览
+const previewVisible = ref(false)
+const previewUrl = ref('')
+
+function previewImage(url) {
+  previewUrl.value = url
+  previewVisible.value = true
+}
 
 // ---- 榜单删除/编辑权限：同一套归属判定（本人或管理员），后端双重校验 ----
 const canDelete = computed(() => {
@@ -214,10 +254,13 @@ function openReasons(item) {
 // ---- 理由编辑状态 ----
 const editingReasonId = ref(null)       // 正在编辑的理由 ID，null 表示无
 const editingReasonContent = ref('')    // 编辑框内容
+const editingReasonImage = ref('')      // 编辑态配图：初始为原图，空串=清空
 const savingReason = ref(false)         // 保存中 loading
 
 // 每条理由的"新增草稿"，以 itemId 为 key
 const reasonDrafts = reactive({})
+// 每个 item 新理由的配图草稿，以 itemId 为 key
+const reasonImageDrafts = reactive({})
 // 每个 item 的"提交中"标志，以 itemId 为 key
 const addingReasonMap = reactive({})
 
@@ -240,11 +283,13 @@ function reasonRankClass(index) {
 function startEditReason(r) {
   editingReasonId.value = r.id
   editingReasonContent.value = r.content
+  editingReasonImage.value = r.imageUrl || ''
 }
 
 function cancelEditReason() {
   editingReasonId.value = null
   editingReasonContent.value = ''
+  editingReasonImage.value = ''
 }
 
 async function saveEditReason() {
@@ -254,7 +299,7 @@ async function saveEditReason() {
   }
   savingReason.value = true
   try {
-    await apiUpdateReason(editingReasonId.value, editingReasonContent.value.trim())
+    await apiUpdateReason(editingReasonId.value, editingReasonContent.value.trim(), editingReasonImage.value)
     ElMessage.success('修改成功')
     cancelEditReason()
     await load()
@@ -277,8 +322,9 @@ async function submitAddReason(itemId) {
   if (!content) return
   addingReasonMap[itemId] = true
   try {
-    await apiAddReason(route.params.id, itemId, content)
+    await apiAddReason(route.params.id, itemId, content, reasonImageDrafts[itemId] || undefined)
     reasonDrafts[itemId] = ''
+    reasonImageDrafts[itemId] = ''
     ElMessage.success('理由已添加')
     await load()
   } finally {
@@ -336,6 +382,13 @@ function applyVoteResult(target, data) {
   if (data.agreeRate != null) target.agreeRate = data.agreeRate
 }
 
+// ---- 来源类型字典：key -> 展示名（与创建表单同一事实源，失败不阻断，降级显 key） ----
+const sourceTypeLabels = ref({})
+
+function sourceLabel(type) {
+  return sourceTypeLabels.value[type] || type
+}
+
 // ---- 榜单基础 ----
 function rankClass(rank) {
   if (rank === 1) return 'rank-1'
@@ -370,7 +423,10 @@ function handleDelete() {
   }).catch(() => {})
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  getSourceTypes().then(res => { sourceTypeLabels.value = res.data || {} }).catch(() => {})
+})
 </script>
 
 <style scoped>
@@ -387,6 +443,14 @@ onMounted(load)
   padding: 24px;
   border-radius: 12px;
   margin-bottom: 20px;
+}
+.detail-cover {
+  display: block;
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 16px;
 }
 .detail-header-top {
   display: flex;
@@ -445,12 +509,25 @@ onMounted(load)
 .rank-1 { background: #f5a623; }
 .rank-2 { background: #a0a4ab; }
 .rank-3 { background: #cd7f32; }
+.item-thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+  cursor: zoom-in;
+}
 .item-info {
   flex: 1;
 }
 .item-name {
   font-size: 17px;
   font-weight: 600;
+}
+.item-source {
+  color: #909399;
+  font-size: 12px;
+  margin-top: 2px;
 }
 .item-desc {
   color: #606266;
@@ -555,6 +632,21 @@ onMounted(load)
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px dashed #ebeef5;
+}
+.add-reason-image {
+  margin-top: 8px;
+}
+.reason-image-wrap {
+  margin-top: 6px;
+}
+.reason-image {
+  display: block;
+  max-width: 220px;
+  max-height: 160px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #ebeef5;
+  cursor: zoom-in;
 }
 .add-reason-actions {
   display: flex;

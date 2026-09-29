@@ -23,6 +23,11 @@ public class CategoryResponse implements Serializable {
 
     private Integer status;
 
+    /**
+     * 是否开启元素来源填写：0关闭，1开启
+     */
+    private Integer sourceEnabled;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

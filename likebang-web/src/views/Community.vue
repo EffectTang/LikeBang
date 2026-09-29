@@ -51,6 +51,7 @@
         shadow="hover"
         @click="goDetail(r.id)"
       >
+        <img v-if="r.coverUrl" :src="resolveImage(r.coverUrl)" class="card-cover" alt="封面" />
         <div class="card-title">{{ r.title }}</div>
         <div class="card-desc">{{ r.description || '暂无描述' }}</div>
         <div class="card-meta">
@@ -89,6 +90,7 @@ import { computed, reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search, Plus } from '@element-plus/icons-vue'
 import { listPublicRankings, listCategories } from '@/api/ranking'
+import { resolveImage } from '@/utils/image'
 import RankingCreateDialog from '@/components/RankingCreateDialog.vue'
 
 const router = useRouter()
@@ -211,6 +213,15 @@ onMounted(async () => {
 .ranking-card {
   cursor: pointer;
   border-radius: 10px;
+}
+.card-cover {
+  display: block;
+  width: auto;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 10px 10px 0 0;
+  /* 负 margin 抵消 el-card 默认 20px 正文内边距，形成通栏封面 */
+  margin: -20px -20px 12px;
 }
 .card-title {
   font-size: 17px;

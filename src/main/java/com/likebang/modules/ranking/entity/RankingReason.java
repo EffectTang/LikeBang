@@ -43,6 +43,11 @@ public class RankingReason implements Serializable {
     private String content;
 
     /**
+     * 理由配图（一期单图，存 /uploads/ 相对路径）
+     */
+    private String imageUrl;
+
+    /**
      * 认同数
      */
     private Long agreeCount;

@@ -8,7 +8,7 @@
     <el-card v-loading="itemLoading" class="main-card" shadow="never">
       <div class="main-head">
         <div class="main-cover">
-          <img v-if="item?.imageUrl" :src="item.imageUrl" alt="" />
+          <img v-if="item?.imageUrl" :src="resolveImage(item.imageUrl)" alt="" />
           <div v-else class="cover-placeholder">
             <el-icon :size="28"><Picture /></el-icon>
           </div>
@@ -18,6 +18,10 @@
             <span class="rank-badge" :class="rankClass(item?.currentRank)">{{ item?.currentRank }}</span>
             {{ item?.name }}
           </div>
+          <div v-if="item?.sourceName" class="main-source">
+            ——《{{ item.sourceName }}》<template v-if="item.sourceType"> · {{ sourceLabel(item.sourceType) }}</template>
+          </div>
+          <div v-if="item?.sourceDesc" class="main-source">{{ item.sourceDesc }}</div>
           <div v-if="item?.description" class="main-desc">{{ item.description }}</div>
           <div class="main-meta">
             <span>@{{ item?.creatorNickname || '匿名' }}</span>
@@ -55,6 +59,9 @@
           show-word-limit
           placeholder="说说你的理由，支持 1000 字…"
         />
+        <div class="publish-image">
+          <image-upload v-model="draftImage" label="添加配图（可选）" />
+        </div>
         <div class="publish-actions">
           <el-button
             type="primary"
@@ -88,6 +95,7 @@
           <!-- 行内编辑 -->
           <div v-if="editingId === r.id" class="reason-edit">
             <el-input v-model="editingContent" type="textarea" :rows="3" maxlength="1000" show-word-limit />
+            <image-upload v-model="editingImage" label="更换配图" />
             <div class="reason-edit-actions">
               <el-button size="small" @click="cancelEdit">取消</el-button>
               <el-button size="small" type="primary" :loading="saving" @click="saveEdit">保存</el-button>
@@ -97,6 +105,15 @@
             <div class="reason-line">
               <span class="reason-floor">{{ idx + 1 }}</span>
               <div class="reason-content">{{ r.content }}</div>
+            </div>
+            <!-- 理由配图：一期一图，点击看大图 -->
+            <div v-if="r.imageUrl" class="reason-image-wrap">
+              <img
+                :src="resolveImage(r.imageUrl)"
+                class="reason-image"
+                alt=""
+                @click="previewImage(resolveImage(r.imageUrl))"
+              />
             </div>
             <div class="reason-footer">
               <div class="reason-meta">
@@ -186,6 +203,11 @@
         <el-button :loading="loading" @click="loadMore">加载更多</el-button>
       </div>
     </div>
+
+    <!-- 理由配图预览 -->
+    <el-dialog v-model="previewVisible" width="600px" append-to-body>
+      <img :src="previewUrl" style="width: 100%" alt="预览" />
+    </el-dialog>
   </div>
 </template>
 
@@ -196,6 +218,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Picture, Delete, EditPen } from '@element-plus/icons-vue'
 import {
   getRankingItem,
+  getSourceTypes,
   listItemReasons,
   addReason as apiAddReason,
   updateReason as apiUpdateReason,
@@ -208,6 +231,8 @@ import {
   voteReason,
   cancelReasonVote
 } from '@/api/ranking'
+import { resolveImage } from '@/utils/image'
+import ImageUpload from '@/components/ImageUpload.vue'
 import { useUserStore } from '@/store/user'
 
 const route = useRoute()
@@ -263,6 +288,13 @@ function rankClass(rank) {
   return ''
 }
 
+// ---- 来源类型字典：key -> 展示名（与创建表单同一事实源，失败降级显 key） ----
+const sourceTypeLabels = ref({})
+
+function sourceLabel(type) {
+  return sourceTypeLabels.value[type] || type
+}
+
 // ---- 理由流：追加式分页（内容流不用页码跳页，回避实时排序下的翻页漂移）----
 const reasons = ref([])
 const total = ref(0)
@@ -295,6 +327,8 @@ function fmtDate(value) {
 
 // ---- 发表理由 ----
 const draft = ref('')
+// 新理由配图（一期一图），存后端返回的相对路径
+const draftImage = ref('')
 const addingReason = ref(false)
 
 async function submitReason() {
@@ -302,8 +336,9 @@ async function submitReason() {
   if (!content) return
   addingReason.value = true
   try {
-    await apiAddReason(rankingId, itemId, content)
+    await apiAddReason(rankingId, itemId, content, draftImage.value || undefined)
     draft.value = ''
+    draftImage.value = ''
     ElMessage.success('理由已发布')
     // 新理由认同数为 0 按排序在列表尾部，回到第一页刷新并同步总数
     await loadPage(1)
@@ -342,7 +377,18 @@ async function handleReasonVote(reason, voteType) {
 // ---- 理由编辑/删除（权限与榜单页一致：本人或管理员）----
 const editingId = ref(null)
 const editingContent = ref('')
+// 编辑态配图：初始为原图；空串=清空，未动则回传原路径
+const editingImage = ref('')
 const saving = ref(false)
+
+// ---- 理由配图预览 ----
+const previewVisible = ref(false)
+const previewUrl = ref('')
+
+function previewImage(url) {
+  previewUrl.value = url
+  previewVisible.value = true
+}
 
 function canEditReason(r) {
   if (!userStore.userInfo) return false
@@ -429,11 +475,13 @@ function handleDeleteComment(reason, c) {
 function startEdit(r) {
   editingId.value = r.id
   editingContent.value = r.content
+  editingImage.value = r.imageUrl || ''
 }
 
 function cancelEdit() {
   editingId.value = null
   editingContent.value = ''
+  editingImage.value = ''
 }
 
 async function saveEdit() {
@@ -443,7 +491,7 @@ async function saveEdit() {
   }
   saving.value = true
   try {
-    await apiUpdateReason(editingId.value, editingContent.value.trim())
+    await apiUpdateReason(editingId.value, editingContent.value.trim(), editingImage.value)
     ElMessage.success('修改成功')
     cancelEdit()
     await loadPage(1)
@@ -465,6 +513,7 @@ function handleDelete(r) {
 onMounted(() => {
   loadItem()
   loadPage(1)
+  getSourceTypes().then(res => { sourceTypeLabels.value = res.data || {} }).catch(() => {})
 })
 </script>
 
@@ -533,6 +582,11 @@ onMounted(() => {
 .rank-1 { background: #f5a623; }
 .rank-2 { background: #a0a4ab; }
 .rank-3 { background: #cd7f32; }
+.main-source {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #909399;
+}
 .main-desc {
   margin-top: 8px;
   font-size: 14px;
@@ -565,6 +619,21 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   margin-top: 10px;
+}
+.publish-image {
+  margin-top: 10px;
+}
+.reason-image-wrap {
+  margin: 6px 0 0 32px;
+}
+.reason-image {
+  display: block;
+  max-width: 260px;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #ebeef5;
+  cursor: zoom-in;
 }
 .section-head {
   display: flex;

@@ -24,6 +24,12 @@ public class RankingUpdateRequest {
     private String description;
 
     /**
+     * 封面图地址；null=不修改，传空字符串可清空
+     */
+    @Size(max = 512, message = "封面地址长度不能超过512")
+    private String coverUrl;
+
+    /**
      * 分类ID，仅支持换为其他分类（null=不修改，本期不支持清空分类）
      */
     private Long categoryId;

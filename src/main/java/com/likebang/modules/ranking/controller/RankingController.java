@@ -21,6 +21,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * 榜单 接口
  */
@@ -69,6 +72,22 @@ public class RankingController {
                                @Valid @RequestBody RankingUpdateRequest request) {
         rankingService.update(id, request, UserContext.getLoginUser());
         return Result.success();
+    }
+
+    /**
+     * 来源类型字典：key -> 展示名（需登录，创建表单下拉选项单一事实源）
+     */
+    @GetMapping("/source-types")
+    public Result<Map<String, String>> sourceTypes() {
+        return Result.success(rankingService.sourceTypes());
+    }
+
+    /**
+     * 站内历史来源作品名去重列表（需登录，创建表单自动补全，keyword 可选）
+     */
+    @GetMapping("/source-names")
+    public Result<List<String>> sourceNames(@RequestParam(required = false) String keyword) {
+        return Result.success(rankingService.sourceNames(keyword));
     }
 
     /**

@@ -5,6 +5,8 @@ import com.likebang.modules.ranking.entity.RankingItem;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
+
 /**
  * 排名项表 Mapper 接口
  */
@@ -19,4 +21,10 @@ public interface RankingItemMapper extends BaseMapper<RankingItem> {
                        @Param("dAgree") int dAgree,
                        @Param("dOppose") int dOppose,
                        @Param("dParticipant") int dParticipant);
+
+    /**
+     * 站内历史来源作品名去重列表（创建表单自动补全），LIMIT 钳制防拖库，
+     * 见 resources/mapper/ranking/RankingItemMapper.xml
+     */
+    List<String> selectDistinctSourceNames(@Param("keyword") String keyword, @Param("limit") int limit);
 }

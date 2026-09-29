@@ -47,6 +47,11 @@ public class RankingCategory implements Serializable {
     private Integer status;
 
     /**
+     * 是否开启元素来源填写：0关闭，1开启（台词/歌词/书摘等摘录型分类）
+     */
+    private Integer sourceEnabled;
+
+    /**
      * 创建时间
      */
     private LocalDateTime createdAt;

@@ -54,6 +54,8 @@ sort INT NOT NULL DEFAULT 0 COMMENT '排序值，越小越靠前',
 
 status TINYINT NOT NULL DEFAULT 1 COMMENT '状态：0禁用，1正常',
 
+source_enabled TINYINT NOT NULL DEFAULT 0 COMMENT '是否开启元素来源填写：0关闭，1开启（台词/歌词/书摘等摘录型分类）',
+
 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
 updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -118,6 +120,10 @@ name VARCHAR(200) NOT NULL COMMENT '排名项名称',
 description VARCHAR(1000) DEFAULT NULL COMMENT '排名项描述',
 image_url VARCHAR(512) DEFAULT NULL COMMENT '排名项图片',
 
+source_type VARCHAR(32) DEFAULT NULL COMMENT '来源类型：MOVIE/TV_DRAMA/MUSIC/BOOK 等，见 SourceTypes 白名单',
+source_name VARCHAR(100) DEFAULT NULL COMMENT '来源作品名称（不带书名号，展示时包《》）',
+source_desc VARCHAR(500) DEFAULT NULL COMMENT '来源补充说明（场景/章节等）',
+
 current_rank INT NOT NULL DEFAULT 0 COMMENT '当前排名',
 score DECIMAL(12,4) NOT NULL DEFAULT 0 COMMENT '当前综合得分',
 
@@ -144,7 +150,8 @@ UNIQUE KEY uk_ranking_name (ranking_id, name),
 KEY idx_ranking_rank (ranking_id, current_rank),
 KEY idx_ranking_score (ranking_id, score),
 KEY idx_ranking_status (ranking_id, status),
-KEY idx_creator_id (creator_id)
+KEY idx_creator_id (creator_id),
+KEY idx_source_name (source_name)
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_0900_ai_ci
@@ -159,6 +166,7 @@ item_id BIGINT NOT NULL COMMENT '排名项ID',
 creator_id BIGINT NOT NULL COMMENT '理由创建者ID',
 
 content VARCHAR(1000) NOT NULL COMMENT '理由内容',
+image_url VARCHAR(512) DEFAULT NULL COMMENT '理由配图（一期单图，存 /uploads/ 相对路径）',
 
 agree_count BIGINT NOT NULL DEFAULT 0 COMMENT '认同数',
 oppose_count BIGINT NOT NULL DEFAULT 0 COMMENT '反对数',
@@ -348,6 +356,34 @@ INSERT IGNORE INTO sys_config
 VALUES
     (2001, 'ranking.detail.reason_limit', '10', '榜单详情理由展示条数', 'ranking', 'int',
      '每个排名项在榜单详情页最多展示的理由条数（按认同数降序取 Top N）', 1, '1', '50', 10);
+
+-- 15 迁移：为已存在的旧 ranking_reason 表补理由配图列（新库由上方 CREATE 已含此列，执行本行报重复列错误可忽略；一次性迁移）
+-- 与 ranking.cover_url / ranking_item.image_url 不同：后两者为建库初始列，无需迁移
+ALTER TABLE ranking_reason
+    ADD COLUMN image_url VARCHAR(512) DEFAULT NULL COMMENT '理由配图（一期单图，存 /uploads/ 相对路径）' AFTER content;
+
+-- 16 迁移：为已存在的旧 ranking_item 表补来源列（新库由上方 CREATE 已含，报重复列错误可忽略；一次性迁移）
+-- 来源为可空通用能力：台词/歌词/书摘等摘录型榜单元素的出处，非开启分类落 null
+ALTER TABLE ranking_item
+    ADD COLUMN source_type VARCHAR(32) DEFAULT NULL COMMENT '来源类型：MOVIE/TV_DRAMA/MUSIC/BOOK 等，见 SourceTypes 白名单' AFTER image_url,
+    ADD COLUMN source_name VARCHAR(100) DEFAULT NULL COMMENT '来源作品名称（不带书名号，展示时包《》）' AFTER source_type,
+    ADD COLUMN source_desc VARCHAR(500) DEFAULT NULL COMMENT '来源补充说明（场景/章节等）' AFTER source_name;
+
+-- 16.1 迁移：来源作品名补全/未来作品聚合查询索引（报重复键错误可忽略；一次性迁移）
+ALTER TABLE ranking_item ADD KEY idx_source_name (source_name);
+
+-- 17 迁移：为已存在的旧 ranking_category 表补来源开关列（新库由上方 CREATE 已含，报重复列错误可忽略；一次性迁移）
+ALTER TABLE ranking_category
+    ADD COLUMN source_enabled TINYINT NOT NULL DEFAULT 0 COMMENT '是否开启元素来源填写：0关闭，1开启（台词/歌词/书摘等摘录型分类）' AFTER status;
+
+-- 18 播种：摘录型分类开启来源能力
+-- 幂等：新库由下方 INSERT 直接带入；旧库已被上方步骤 9 插过的行走 UPDATE 补开（重复执行无副作用）
+INSERT IGNORE INTO ranking_category (id, name, description, sort, status, source_enabled) VALUES
+    (1001, '书籍', '读书、小说、专业书等相关榜单', 1, 1, 1),
+    (1002, '电影', '电影、剧集、纪录片等榜单',     2, 1, 1),
+    (1003, '音乐', '歌曲、专辑、歌手等榜单',       3, 1, 1);
+
+UPDATE ranking_category SET source_enabled = 1 WHERE id IN (1001, 1002, 1003) AND source_enabled = 0;
 
 
   

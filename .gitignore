@@ -93,6 +93,9 @@ Desktop.ini
 *.swo
 *~
 
+# 用户上传的图片（本地磁盘存储根目录，见 likebang.file.storage-path）
+/uploads/
+
 # =========================
 # Node.js / Vue 前端
 # =========================

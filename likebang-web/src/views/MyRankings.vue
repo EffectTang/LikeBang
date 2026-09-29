@@ -33,6 +33,7 @@
     <el-empty v-else-if="list.length === 0" description="还没有创建过榜单，去「发现榜单」发起第一个吧" />
     <div v-else class="card-grid" v-loading="loading">
       <el-card v-for="r in list" :key="r.id" class="ranking-card" shadow="hover">
+        <img v-if="r.coverUrl" :src="resolveImage(r.coverUrl)" class="card-cover" alt="封面" @click="goDetail(r.id)" />
         <div class="card-title" @click="goDetail(r.id)">
           <span class="title-text">{{ r.title }}</span>
           <el-tag size="small" :type="statusTagType(r.status)">{{ statusText(r.status) }}</el-tag>
@@ -83,6 +84,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus, EditPen, Delete } from '@element-plus/icons-vue'
 import { listMyRankings, deleteRanking } from '@/api/ranking'
+import { resolveImage } from '@/utils/image'
 import RankingEditDialog from '@/components/RankingEditDialog.vue'
 
 const router = useRouter()
@@ -205,6 +207,16 @@ onMounted(loadList)
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 16px;
+}
+.card-cover {
+  display: block;
+  width: auto;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 10px 10px 0 0;
+  /* 负 margin 抵消 el-card 默认 20px 正文内边距，形成通栏封面 */
+  margin: -20px -20px 12px;
+  cursor: pointer;
 }
 .ranking-card {
   border-radius: 10px;

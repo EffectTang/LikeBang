@@ -15,6 +15,16 @@ export function createRanking(data) {
   return request.post('/rankings', data)
 }
 
+// 来源类型字典：key -> 展示名（下拉选项单一事实源，需登录）
+export function getSourceTypes() {
+  return request.get('/rankings/source-types')
+}
+
+// 站内历史来源作品名（创建表单自动补全，keyword 可选，需登录）
+export function searchSourceNames(keyword) {
+  return request.get('/rankings/source-names', { params: { keyword } })
+}
+
 // 删除榜单（创建者本人或管理员）
 export function deleteRanking(id) {
   return request.delete(`/rankings/${id}`)
@@ -30,9 +40,9 @@ export function updateRanking(id, data) {
   return request.put(`/rankings/${id}`, data)
 }
 
-// 为某排名项新增推荐理由
-export function addReason(rankingId, itemId, content) {
-  return request.post(`/rankings/${rankingId}/items/${itemId}/reasons`, { content })
+// 为某排名项新增推荐理由（imageUrl 可选，一条理由一张图；不传即无图）
+export function addReason(rankingId, itemId, content, imageUrl) {
+  return request.post(`/rankings/${rankingId}/items/${itemId}/reasons`, { content, imageUrl })
 }
 
 // 某排名项详情（排名项页面主体）
@@ -60,9 +70,9 @@ export function deleteReasonComment(commentId) {
   return request.delete(`/rankings/comments/${commentId}`)
 }
 
-// 修改推荐理由
-export function updateReason(reasonId, content) {
-  return request.put(`/rankings/reasons/${reasonId}`, { content })
+// 修改推荐理由（仅本人或管理员）；imageUrl 不传=不改图，传空串=清空图
+export function updateReason(reasonId, content, imageUrl) {
+  return request.put(`/rankings/reasons/${reasonId}`, { content, imageUrl })
 }
 
 // 删除推荐理由

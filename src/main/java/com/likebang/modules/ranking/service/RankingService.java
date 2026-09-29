@@ -10,6 +10,9 @@ import com.likebang.modules.ranking.dto.request.ReasonUpdateRequest;
 import com.likebang.modules.ranking.dto.response.RankingDetailResponse;
 import com.likebang.modules.ranking.dto.response.RankingResponse;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * 榜单服务接口
  */
@@ -50,6 +53,16 @@ public interface RankingService {
      */
     IPage<RankingDetailResponse.RankingReasonResponse> pageItemReasons(
             Long rankingId, Long itemId, PageParam pageParam);
+
+    /**
+     * 来源类型字典：key -> 展示名（前端下拉选项单一事实源，需登录）
+     */
+    Map<String, String> sourceTypes();
+
+    /**
+     * 站内历史来源作品名去重列表（创建表单自动补全用，关键词可选，需登录）
+     */
+    List<String> sourceNames(String keyword);
 
     /**
      * 删除榜单（软删除）：仅创建者本人或管理员可删

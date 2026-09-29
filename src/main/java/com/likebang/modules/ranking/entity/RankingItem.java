@@ -48,6 +48,21 @@ public class RankingItem implements Serializable {
     private String imageUrl;
 
     /**
+     * 来源类型：MOVIE/TV_DRAMA/MUSIC/BOOK 等，见 SourceTypes 白名单（可空，摘录型榜单专用）
+     */
+    private String sourceType;
+
+    /**
+     * 来源作品名称，如《让子弹飞》（可空，不带书名号存储）
+     */
+    private String sourceName;
+
+    /**
+     * 来源补充说明，如台词出现的场景/章节（可空）
+     */
+    private String sourceDesc;
+
+    /**
      * 当前排名
      */
     private Integer currentRank;

@@ -34,6 +34,24 @@
         />
       </el-form-item>
 
+      <el-form-item label="封面图">
+        <el-upload
+          :file-list="coverFileList"
+          :limit="1"
+          list-type="picture-card"
+          accept="image/jpeg,image/png,image/gif,image/webp"
+          :before-upload="beforeImageUpload"
+          :http-request="req => doUpload(req, 'cover')"
+          :on-remove="() => { form.coverUrl = ''; coverFileList.value = [] }"
+          :on-preview="handlePreview"
+        >
+          <el-icon><Plus /></el-icon>
+        </el-upload>
+        <el-dialog v-model="previewVisible" width="600px" append-to-body :show-close="true">
+          <img :src="previewUrl" style="width: 100%" alt="预览" />
+        </el-dialog>
+      </el-form-item>
+
       <el-form-item label="名次数量" prop="itemLimit">
         <el-input-number v-model="form.itemLimit" :min="3" :max="50" />
         <span class="tip">榜单最多可容纳的排名项数量</span>
@@ -50,6 +68,36 @@
                 maxlength="200"
                 class="item-name"
               />
+              <!-- 来源信息：仅分类开启来源能力时展示（台词/歌词/书摘等摘录型榜单），均为可选 -->
+              <div v-if="sourceEnabled" class="item-source-row">
+                <el-select
+                  v-model="item.sourceType"
+                  placeholder="类型"
+                  clearable
+                  class="source-type"
+                >
+                  <el-option
+                    v-for="(label, key) in sourceTypeOptions"
+                    :key="key"
+                    :label="label"
+                    :value="key"
+                  />
+                </el-select>
+                <el-autocomplete
+                  v-model.trim="item.sourceName"
+                  :fetch-suggestions="fetchSourceSuggestions"
+                  placeholder="来源作品名称（可选），如：让子弹飞"
+                  maxlength="100"
+                  clearable
+                  class="source-name"
+                />
+              </div>
+              <el-input
+                v-if="sourceEnabled"
+                v-model="item.sourceDesc"
+                placeholder="来源补充说明（可选），如出现的场景/章节"
+                maxlength="500"
+              />
               <el-input
                 v-model="item.reason"
                 type="textarea"
@@ -57,6 +105,23 @@
                 placeholder="你的推荐理由（可选）"
                 maxlength="1000"
               />
+              <div class="item-image-upload">
+                <template v-if="item.imageUrl">
+                  <img :src="resolveImage(item.imageUrl)" class="item-image-thumb" alt="" />
+                  <el-button link type="danger" size="small" :icon="Delete" @click="item.imageUrl = ''">移除图片</el-button>
+                </template>
+                <el-upload
+                  v-else
+                  :show-file-list="false"
+                  :disabled="!item.name"
+                  :before-upload="beforeImageUpload"
+                  :http-request="req => doUpload(req, index)"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                >
+                  <el-button link type="primary" size="small" :icon="Plus">上传图片</el-button>
+                </el-upload>
+                <span v-if="!item.name" class="tip">先填名称后可上传图片</span>
+              </div>
             </div>
             <el-button
               link
@@ -95,10 +160,13 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
-import { createRanking } from '@/api/ranking'
+import { createRanking, getSourceTypes, searchSourceNames } from '@/api/ranking'
+import { uploadImage } from '@/api/file'
+import { resolveImage } from '@/utils/image'
+import { useUserStore } from '@/store/user'
 
 const props = defineProps({
   categories: { type: Array, default: () => [] }
@@ -108,15 +176,59 @@ const emit = defineEmits(['created'])
 const visible = ref(false)
 const submitting = ref(false)
 const formRef = ref()
+const coverFileList = ref([])
+const previewVisible = ref(false)
+const previewUrl = ref('')
+const userStore = useUserStore()
+
+// 单元素初始值工厂：来源字段随展开收起保留草稿，统一在此声明防遗漏
+// 注意：const 无提升，必须声明在 form 之前（form 初始化时即调用）
+const newItem = () => ({
+  name: '', reason: '', imageUrl: '',
+  sourceType: '', sourceName: '', sourceDesc: ''
+})
 
 const form = reactive({
   title: '',
   description: '',
+  coverUrl: '',
   categoryId: null,
   itemLimit: 10,
   visibility: 1,
-  items: [{ name: '', reason: '' }]
+  items: [newItem()]
 })
+
+// 来源能力由分类配置驱动（sourceEnabled=1），不在前端硬编码分类判断
+const sourceEnabled = computed(() => {
+  const cat = props.categories.find(c => String(c.id) === String(form.categoryId))
+  return cat?.sourceEnabled === 1
+})
+
+// 来源类型字典：首次需要时拉取，失败不阻断（下拉退化为空选项，仍可手填作品名）
+const sourceTypeOptions = ref({})
+watch(sourceEnabled, async enabled => {
+  if (!enabled || Object.keys(sourceTypeOptions.value).length > 0) return
+  try {
+    const res = await getSourceTypes()
+    sourceTypeOptions.value = res.data || {}
+  } catch (e) {
+    // 未登录/服务异常：拦截器已弹错，留空字典即可
+  }
+}, { immediate: true })
+
+// 作品名站内补全：输入时实时查历史去重列表；未登录不发起请求避免反复 401
+async function fetchSourceSuggestions(queryString, cb) {
+  if (!userStore.isLogin) {
+    cb([])
+    return
+  }
+  try {
+    const res = await searchSourceNames(queryString || undefined)
+    cb((res.data || []).map(name => ({ value: name })))
+  } catch (e) {
+    cb([])
+  }
+}
 
 const rules = {
   title: [
@@ -137,18 +249,61 @@ function onOpen() {
 
 function onClosed() {
   formRef.value?.resetFields()
-  form.items = [{ name: '', reason: '' }]
+  form.items = [newItem()]
+  form.coverUrl = ''
+  coverFileList.value = []
   form.categoryId = null
   form.itemLimit = 10
   form.visibility = 1
 }
 
 function addItem() {
-  form.items.push({ name: '', reason: '' })
+  form.items.push(newItem())
 }
 
 function removeItem(index) {
   form.items.splice(index, 1)
+}
+
+// 上传前置校验：格式 + 大小（与后端白名单/限流口径一致）
+function beforeImageUpload(file) {
+  if (!/^image\/(jpeg|png|gif|webp)$/.test(file.type)) {
+    ElMessage.warning('仅支持 jpg/png/gif/webp 格式图片')
+    return false
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    ElMessage.warning('单张图片不能超过 5MB')
+    return false
+  }
+  return true
+}
+
+function handlePreview(file) {
+  previewUrl.value = file.url
+  previewVisible.value = true
+}
+
+// 自定义上传：走 /files/image 拿相对路径回填表单；target='cover' 为榜单封面，否则为对应下标排名项图
+async function doUpload(req, target) {
+  try {
+    const res = await uploadImage(req.file)
+    const url = res.data
+    if (target === 'cover') {
+      form.coverUrl = url
+      // picture-card 列表用可渲染的完整路径预览
+      coverFileList.value = [{ name: req.file.name, url: resolveImage(url) }]
+    } else {
+      form.items[target].imageUrl = url
+    }
+  } catch (e) {
+    // 失败：移除列表中的占位条目，允许重试（request 拦截器已弹错）
+    if (target === 'cover') {
+      coverFileList.value = []
+      form.coverUrl = ''
+    } else {
+      form.items[target].imageUrl = ''
+    }
+  }
 }
 
 async function submit() {
@@ -170,10 +325,21 @@ async function submit() {
     const res = await createRanking({
       title: form.title,
       description: form.description,
+      coverUrl: form.coverUrl || null,
       categoryId: form.categoryId,
       itemLimit: form.itemLimit,
       visibility: form.visibility,
-      items: items.map(i => ({ name: i.name, reason: i.reason }))
+      items: items.map(i => ({
+        name: i.name,
+        reason: i.reason,
+        imageUrl: i.imageUrl || null,
+        // 分类未开启来源能力时不提交来源字段（后端也会按分类配置整组丢弃）
+        ...(sourceEnabled.value && {
+          sourceType: i.sourceType || null,
+          sourceName: i.sourceName || null,
+          sourceDesc: i.sourceDesc || null
+        })
+      }))
     })
     ElMessage.success('榜单发布成功')
     visible.value = false
@@ -218,5 +384,29 @@ defineExpose({ open })
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+.item-image-upload {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+}
+.item-image-thumb {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #ebeef5;
+}
+.item-source-row {
+  display: flex;
+  gap: 8px;
+}
+.source-type {
+  width: 120px;
+  flex-shrink: 0;
+}
+.source-name {
+  flex: 1;
 }
 </style>

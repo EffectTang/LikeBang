@@ -11,6 +11,7 @@ import com.likebang.common.exception.BusinessException;
 import com.likebang.common.result.ResultCode;
 import com.likebang.common.utils.DateTimeUtils;
 import com.likebang.common.utils.UserContext;
+import com.likebang.modules.ranking.constant.SourceTypes;
 import com.likebang.modules.ranking.dto.request.RankingCreateRequest;
 import com.likebang.modules.ranking.dto.request.RankingUpdateRequest;
 import com.likebang.modules.ranking.dto.request.ReasonCreateRequest;
@@ -91,11 +92,34 @@ public class RankingServiceImpl implements RankingService {
             }
         }
 
+        // 来源能力由分类配置驱动（禁止硬编码分类判断）：未开启的分类即使前端传了来源字段也整组丢弃
+        boolean sourceEnabled = false;
+        if (request.getCategoryId() != null) {
+            RankingCategory category = rankingCategoryMapper.selectById(request.getCategoryId());
+            sourceEnabled = category != null && Integer.valueOf(1).equals(category.getSourceEnabled());
+        }
+        if (!sourceEnabled) {
+            for (RankingCreateRequest.Item item : items) {
+                item.setSourceType(null);
+                item.setSourceName(null);
+                item.setSourceDesc(null);
+            }
+        } else {
+            // 来源类型服务端白名单校验（取值见 SourceTypes，与字典接口同一事实源）
+            for (RankingCreateRequest.Item item : items) {
+                if (StrUtil.isNotBlank(item.getSourceType()) && !SourceTypes.isValid(item.getSourceType())) {
+                    throw new BusinessException(ResultCode.BAD_REQUEST.getCode(),
+                            "非法的来源类型：" + item.getSourceType());
+                }
+            }
+        }
+
         Ranking ranking = new Ranking();
         ranking.setCreatorId(creatorId);
         ranking.setCategoryId(request.getCategoryId());
         ranking.setTitle(request.getTitle());
         ranking.setDescription(request.getDescription());
+        ranking.setCoverUrl(StrUtil.blankToDefault(request.getCoverUrl(), null));
         ranking.setItemLimit(request.getItemLimit());
         ranking.setItemCount(items.size());
         ranking.setVisibility(request.getVisibility() == null
@@ -112,6 +136,11 @@ public class RankingServiceImpl implements RankingService {
             entity.setCreatorId(creatorId);
             entity.setName(item.getName());
             entity.setDescription(StrUtil.blankToDefault(item.getDescription(), null));
+            entity.setImageUrl(StrUtil.blankToDefault(item.getImageUrl(), null));
+            entity.setSourceType(StrUtil.blankToDefault(item.getSourceType(), null));
+            // 作品名去除可能带入的书名号，保证库内纯净存储、展示时统一重新包裹
+            entity.setSourceName(normalizeSourceName(item.getSourceName()));
+            entity.setSourceDesc(StrUtil.blankToDefault(item.getSourceDesc(), null));
             entity.setCurrentRank(rank++);
             entity.setStatus(1);
             entity.setCreatedAt(DateTimeUtils.now());
@@ -310,6 +339,30 @@ public class RankingServiceImpl implements RankingService {
     }
 
     @Override
+    public Map<String, String> sourceTypes() {
+        return SourceTypes.labels();
+    }
+
+    @Override
+    public List<String> sourceNames(String keyword) {
+        // 补全候选条数硬上限钳制在 SQL 内，防拖库
+        return rankingItemMapper.selectDistinctSourceNames(StrUtil.trimToNull(keyword), 20);
+    }
+
+    /**
+     * 来源作品名归一化：去首尾空白与书名号，空白落 null（可空字段不存空串）
+     */
+    private String normalizeSourceName(String sourceName) {
+        String trimmed = StrUtil.trim(sourceName);
+        if (trimmed == null) {
+            return null;
+        }
+        trimmed = StrUtil.removePrefix(trimmed, "《");
+        trimmed = StrUtil.removeSuffix(trimmed, "》");
+        return StrUtil.blankToDefault(trimmed, null);
+    }
+
+    @Override
     public IPage<RankingDetailResponse.RankingReasonResponse> pageItemReasons(
             Long rankingId, Long itemId, PageParam pageParam) {
         loadPublishedRanking(rankingId);
@@ -433,6 +486,11 @@ public class RankingServiceImpl implements RankingService {
             update.setDescription(request.getDescription());
             changed = true;
         }
+        if (request.getCoverUrl() != null) {
+            // null=不修改；空串能真正落库清空列（updateById 忽略 null 字段），前端按 falsy 处理
+            update.setCoverUrl(request.getCoverUrl().trim());
+            changed = true;
+        }
         if (request.getCategoryId() != null) {
             update.setCategoryId(request.getCategoryId());
             changed = true;
@@ -484,6 +542,7 @@ public class RankingServiceImpl implements RankingService {
         reason.setItemId(itemId);
         reason.setCreatorId(operator.getUserId());
         reason.setContent(request.getContent());
+        reason.setImageUrl(StrUtil.blankToDefault(request.getImageUrl(), null));
         reason.setCurrentRank(nextRank);
         reason.setStatus(ITEM_REASON_NORMAL);
         reason.setCreatedAt(DateTimeUtils.now());
@@ -501,10 +560,20 @@ public class RankingServiceImpl implements RankingService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateReason(Long reasonId, ReasonUpdateRequest request, LoginUser operator) {
+        // 权限沿用理由编辑口径：创建者本人或管理员（内置超管 role=ADMIN 同受此规则）
         RankingReason reason = loadEditableReason(reasonId, operator);
-        reason.setContent(request.getContent());
-        reason.setUpdatedAt(DateTimeUtils.now());
-        rankingReasonMapper.updateById(reason);
+
+        // 局部更新：只写变更列。旧写法把整个实体（含 agree_count 等计数）回写，
+        // 会覆盖同时发生的投票落账结果
+        RankingReason update = new RankingReason();
+        update.setId(reason.getId());
+        update.setContent(request.getContent());
+        if (request.getImageUrl() != null) {
+            // null=不修改图片；空串能真正落库清空列（updateById 忽略 null 字段）
+            update.setImageUrl(request.getImageUrl().trim());
+        }
+        update.setUpdatedAt(DateTimeUtils.now());
+        rankingReasonMapper.updateById(update);
     }
 
     @Override

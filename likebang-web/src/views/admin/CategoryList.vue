@@ -32,6 +32,13 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column prop="sourceEnabled" label="元素来源" width="100">
+          <template #default="scope">
+            <el-tag :type="scope.row.sourceEnabled === 1 ? 'warning' : 'info'" effect="plain">
+              {{ scope.row.sourceEnabled === 1 ? '已开启' : '未开启' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="createdAt" label="创建时间" width="180" />
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="scope">
@@ -80,6 +87,15 @@
             <el-radio :value="0">禁用</el-radio>
           </el-radio-group>
         </el-form-item>
+        <el-form-item label="元素来源" prop="sourceEnabled">
+          <el-radio-group v-model="form.sourceEnabled">
+            <el-radio :value="1">开启</el-radio>
+            <el-radio :value="0">关闭</el-radio>
+          </el-radio-group>
+          <div style="color: #909399; font-size: 12px; line-height: 1.5;">
+            开启后台长在该分类下创建榜单时，可填写排名项的来源类型与作品名称（适用台词/歌词/书摘等摘录型榜单）
+          </div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -114,7 +130,8 @@ const form = reactive({
   name: '',
   description: '',
   sort: 0,
-  status: 1
+  status: 1,
+  sourceEnabled: 0
 })
 
 const rules = {
@@ -158,7 +175,8 @@ const handleEdit = (row) => {
     name: row.name,
     description: row.description,
     sort: row.sort,
-    status: row.status
+    status: row.status,
+    sourceEnabled: row.sourceEnabled ?? 0
   })
   dialogVisible.value = true
 }
@@ -198,7 +216,8 @@ const resetForm = () => {
     name: '',
     description: '',
     sort: 0,
-    status: 1
+    status: 1,
+    sourceEnabled: 0
   })
   editId.value = null
 }

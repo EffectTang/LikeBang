@@ -25,6 +25,12 @@ public class RankingCreateRequest {
     private String description;
 
     /**
+     * 封面图地址（前端先走 /files/image 上传拿到相对路径，可选）
+     */
+    @Size(max = 512, message = "封面地址长度不能超过512")
+    private String coverUrl;
+
+    /**
      * 分类ID，可不选
      */
     private Long categoryId;
@@ -56,6 +62,30 @@ public class RankingCreateRequest {
 
         @Size(max = 1000, message = "排名项描述长度不能超过1000")
         private String description;
+
+        /**
+         * 排名项图片地址（可选，同封面图走上传接口获取）
+         */
+        @Size(max = 512, message = "排名项图片地址长度不能超过512")
+        private String imageUrl;
+
+        /**
+         * 来源类型（可选，仅分类开启来源能力时生效）：取值见 GET /rankings/source-types，服务端白名单校验
+         */
+        @Size(max = 32, message = "来源类型长度不能超过32")
+        private String sourceType;
+
+        /**
+         * 来源作品名称（可选）：台词/歌词/书摘等摘录型元素的出处，如“让子弹飞”
+         */
+        @Size(max = 100, message = "来源作品名称长度不能超过100")
+        private String sourceName;
+
+        /**
+         * 来源补充说明（可选）：如台词出现的场景/章节
+         */
+        @Size(max = 500, message = "来源补充说明长度不能超过500")
+        private String sourceDesc;
 
         /**
          * 创建者对该项的推荐理由
