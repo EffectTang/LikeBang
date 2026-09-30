@@ -55,6 +55,26 @@ export function listItemReasons(rankingId, itemId, params) {
   return request.get(`/rankings/${rankingId}/items/${itemId}/reasons`, { params })
 }
 
+// 修改排名项配图（创建者本人或管理员）；imageUrl 传空串=清空配图
+export function updateItemImage(rankingId, itemId, imageUrl) {
+  return request.put(`/rankings/${rankingId}/items/${itemId}/image`, { imageUrl })
+}
+
+// 新增排名项（榜单创建者本人或管理员），返回新项ID
+export function addRankingItem(rankingId, data) {
+  return request.post(`/rankings/${rankingId}/items`, data)
+}
+
+// 删除排名项（榜单创建者本人或管理员）；软删该项及其下理由
+export function deleteRankingItem(rankingId, itemId) {
+  return request.delete(`/rankings/${rankingId}/items/${itemId}`)
+}
+
+// 编辑排名项（榜单创建者本人或管理员）；全量替换 name/description/imageUrl/来源字段
+export function updateRankingItem(rankingId, itemId, data) {
+  return request.put(`/rankings/${rankingId}/items/${itemId}`, data)
+}
+
 // 发布理由评论（返回完整评论体，时间正序下可直接追加到流尾部）
 export function addReasonComment(reasonId, content) {
   return request.post(`/rankings/reasons/${reasonId}/comments`, { content })

@@ -5,6 +5,9 @@ import com.likebang.common.dto.PageParam;
 import com.likebang.common.result.Result;
 import com.likebang.common.utils.UserContext;
 import com.likebang.modules.ranking.dto.request.CommentCreateRequest;
+import com.likebang.modules.ranking.dto.request.ItemImageUpdateRequest;
+import com.likebang.modules.ranking.dto.request.ItemCreateRequest;
+import com.likebang.modules.ranking.dto.request.ItemUpdateRequest;
 import com.likebang.modules.ranking.dto.request.RankingCreateRequest;
 import com.likebang.modules.ranking.dto.request.RankingUpdateRequest;
 import com.likebang.modules.ranking.dto.request.ReasonCreateRequest;
@@ -116,6 +119,46 @@ public class RankingController {
             @PathVariable Long itemId,
             @ModelAttribute PageParam pageParam) {
         return Result.success(rankingService.pageItemReasons(id, itemId, pageParam));
+    }
+
+    /**
+     * 修改排名项配图（需登录）：仅排名项创建者本人或管理员；imageUrl 传空表示清空
+     */
+    @PutMapping("/{id}/items/{itemId}/image")
+    public Result<Void> updateItemImage(@PathVariable Long id,
+                                        @PathVariable Long itemId,
+                                        @Valid @RequestBody ItemImageUpdateRequest request) {
+        rankingService.updateItemImage(id, itemId, request.getImageUrl(), UserContext.getLoginUser());
+        return Result.success();
+    }
+
+    /**
+     * 新增排名项（需登录）：仅榜单创建者本人或管理员；返回新项ID
+     */
+    @PostMapping("/{id}/items")
+    public Result<Long> addItem(@PathVariable Long id,
+                                @Valid @RequestBody ItemCreateRequest request) {
+        return Result.success(rankingService.addItem(id, request, UserContext.getLoginUser()));
+    }
+
+    /**
+     * 删除排名项（需登录）：仅榜单创建者本人或管理员；软删该项及其下理由
+     */
+    @DeleteMapping("/{id}/items/{itemId}")
+    public Result<Void> deleteItem(@PathVariable Long id, @PathVariable Long itemId) {
+        rankingService.deleteItem(id, itemId, UserContext.getLoginUser());
+        return Result.success();
+    }
+
+    /**
+     * 编辑排名项（需登录）：仅榜单创建者本人或管理员；全量替换名称/描述/配图/来源，不动名次
+     */
+    @PutMapping("/{id}/items/{itemId}")
+    public Result<Void> updateItem(@PathVariable Long id,
+                                   @PathVariable Long itemId,
+                                   @Valid @RequestBody ItemUpdateRequest request) {
+        rankingService.updateItem(id, itemId, request, UserContext.getLoginUser());
+        return Result.success();
     }
 
     /**

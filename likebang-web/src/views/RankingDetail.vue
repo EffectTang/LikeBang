@@ -46,9 +46,9 @@
             <img v-if="item.imageUrl" :src="resolveImage(item.imageUrl)" class="item-thumb" alt="" @click="previewImage(resolveImage(item.imageUrl))" />
             <div class="item-info">
               <div class="item-name">{{ item.name }}</div>
-              <!-- 出处副标题：仅填了来源才显示；作品名统一重新包《》 -->
+              <!-- 出处副标题：仅展示来源作品名（不再附带类型标签，避免与榜单分类混淆） -->
               <div v-if="item.sourceName" class="item-source">
-                ——《{{ item.sourceName }}》<template v-if="item.sourceType"> · {{ sourceLabel(item.sourceType) }}</template>
+                ——《{{ item.sourceName }}》
               </div>
               <div v-if="item.description" class="item-desc">{{ item.description }}</div>
             </div>
@@ -70,6 +70,24 @@
                 @click="handleItemVote(item, -1)"
               >👎 反对 {{ item.opposeCount }}</el-button>
             </div>
+            <el-button
+              v-if="canDelete"
+              link
+              type="primary"
+              size="small"
+              :icon="EditPen"
+              class="item-edit"
+              @click="openItemEdit(item)"
+            >编辑</el-button>
+            <el-button
+              v-if="canDelete"
+              link
+              type="danger"
+              size="small"
+              :icon="Delete"
+              class="item-del"
+              @click="handleDeleteItem(item)"
+            >删除项</el-button>
           </div>
 
           <!-- 理由列表：后端按认同数降序只带 Top N（N 管理员可在系统设置配置）；"查看详情"跳转排名项独立页面，不受条数限制 -->
@@ -180,10 +198,45 @@
             </div>
           </div>
         </el-card>
+
+        <!-- 新增排名项（仅本人或管理员；受 itemLimit 约束） -->
+        <div v-if="canDelete" class="add-item">
+          <template v-if="canAddItem">
+            <div class="add-item-title">新增排名项</div>
+            <el-input
+              v-model="newItem.name"
+              placeholder="排名项名称（必填）"
+              maxlength="200"
+              show-word-limit
+              class="add-item-name"
+            />
+            <el-input
+              v-model="newItem.description"
+              type="textarea"
+              :rows="2"
+              placeholder="描述（可选）"
+              maxlength="1000"
+              show-word-limit
+            />
+            <image-upload v-model="newItem.imageUrl" label="添加配图（可选）" />
+            <el-button
+              type="primary"
+              :loading="addingItem"
+              :disabled="!newItem.name.trim()"
+              @click="submitAddItem"
+            >添加排名项</el-button>
+          </template>
+          <div v-else class="add-item-hint">
+            已达名次上限（Top {{ detail.itemLimit }}），如需新增请先在「编辑榜单」中调高名次数量。
+          </div>
+        </div>
       </div>
 
       <!-- 编辑榜单（仅本人或管理员，入口在头部） -->
       <ranking-edit-dialog ref="editDialogRef" @updated="load" />
+
+      <!-- 编辑排名项（仅本人或管理员，入口在每个排名项） -->
+      <item-edit-dialog ref="itemEditDialogRef" @updated="load" />
 
       <!-- 排名项缩略图点击预览 -->
       <el-dialog v-model="previewVisible" width="600px" append-to-body>
@@ -201,16 +254,18 @@ import { ChatLineSquare, Delete, EditPen } from '@element-plus/icons-vue'
 import {
   getRankingDetail,
   deleteRanking,
-  getSourceTypes,
   addReason as apiAddReason,
   updateReason as apiUpdateReason,
   deleteReason as apiDeleteReason,
   voteItem,
   cancelItemVote,
   voteReason,
-  cancelReasonVote
+  cancelReasonVote,
+  addRankingItem,
+  deleteRankingItem
 } from '@/api/ranking'
 import RankingEditDialog from '@/components/RankingEditDialog.vue'
+import ItemEditDialog from '@/components/ItemEditDialog.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
 import { resolveImage } from '@/utils/image'
 import { useUserStore } from '@/store/user'
@@ -239,11 +294,61 @@ const canDelete = computed(() => {
   return userStore.isAdmin || isOwner
 })
 
+// ---- 排名项结构管理（新增/删除）：与"编辑/删除榜单"同一门控（本人或管理员）----
+const activeItemCount = computed(() => detail.value?.items?.length ?? 0)
+const canAddItem = computed(() =>
+  canDelete.value && activeItemCount.value < (Number(detail.value?.itemLimit) || 0)
+)
+const newItem = reactive({ name: '', description: '', imageUrl: '' })
+const addingItem = ref(false)
+
+async function submitAddItem() {
+  const name = newItem.name.trim()
+  if (!name) {
+    ElMessage.warning('请输入排名项名称')
+    return
+  }
+  addingItem.value = true
+  try {
+    await addRankingItem(route.params.id, {
+      name,
+      description: newItem.description.trim() || undefined,
+      imageUrl: newItem.imageUrl || undefined
+    })
+    newItem.name = ''
+    newItem.description = ''
+    newItem.imageUrl = ''
+    ElMessage.success('已新增排名项')
+    await load()
+  } finally {
+    addingItem.value = false
+  }
+}
+
+async function handleDeleteItem(item) {
+  try {
+    await ElMessageBox.confirm(
+      `确定删除排名项「${item.name}」吗？该项下的理由将一并隐藏（投票记录保留）。`,
+      '提示', { type: 'warning' }
+    )
+  } catch { return }
+  await deleteRankingItem(route.params.id, item.id)
+  ElMessage.success('已删除排名项')
+  await load()
+}
+
 // ---- 编辑榜单 ----
 const editDialogRef = ref()
 
 function openEdit() {
   editDialogRef.value.open(detail.value)
+}
+
+// ---- 编辑排名项 ----
+const itemEditDialogRef = ref()
+
+function openItemEdit(item) {
+  itemEditDialogRef.value.open(item, route.params.id, detail.value?.categoryId)
 }
 
 // ---- 排名项详情页：主体+全量理由的独立页面（微博/贴吧式）----
@@ -382,13 +487,6 @@ function applyVoteResult(target, data) {
   if (data.agreeRate != null) target.agreeRate = data.agreeRate
 }
 
-// ---- 来源类型字典：key -> 展示名（与创建表单同一事实源，失败不阻断，降级显 key） ----
-const sourceTypeLabels = ref({})
-
-function sourceLabel(type) {
-  return sourceTypeLabels.value[type] || type
-}
-
 // ---- 榜单基础 ----
 function rankClass(rank) {
   if (rank === 1) return 'rank-1'
@@ -425,7 +523,6 @@ function handleDelete() {
 
 onMounted(() => {
   load()
-  getSourceTypes().then(res => { sourceTypeLabels.value = res.data || {} }).catch(() => {})
 })
 </script>
 
@@ -540,6 +637,34 @@ onMounted(() => {
 }
 .item-stats .el-button + .el-button {
   margin-left: 0;
+}
+.item-del {
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+.item-edit {
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+.add-item {
+  border: 1px dashed #dcdfe6;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.add-item-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+}
+.add-item-name {
+  max-width: 420px;
+}
+.add-item-hint {
+  color: #909399;
+  font-size: 13px;
 }
 .reason-vote {
   display: inline-flex;

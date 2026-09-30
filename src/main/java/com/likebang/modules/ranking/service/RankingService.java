@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.likebang.common.auth.LoginUser;
 import com.likebang.common.dto.PageParam;
 import com.likebang.modules.ranking.dto.request.RankingCreateRequest;
+import com.likebang.modules.ranking.dto.request.ItemCreateRequest;
+import com.likebang.modules.ranking.dto.request.ItemUpdateRequest;
 import com.likebang.modules.ranking.dto.request.RankingUpdateRequest;
 import com.likebang.modules.ranking.dto.request.ReasonCreateRequest;
 import com.likebang.modules.ranking.dto.request.ReasonUpdateRequest;
@@ -53,6 +55,26 @@ public interface RankingService {
      */
     IPage<RankingDetailResponse.RankingReasonResponse> pageItemReasons(
             Long rankingId, Long itemId, PageParam pageParam);
+
+    /**
+     * 修改排名项配图（仅排名项创建者本人或管理员）；imageUrl 为空表示清空
+     */
+    void updateItemImage(Long rankingId, Long itemId, String imageUrl, LoginUser operator);
+
+    /**
+     * 新增排名项（仅榜单创建者本人或管理员），返回新项ID；受 itemLimit 与榜内名称唯一约束
+     */
+    Long addItem(Long rankingId, ItemCreateRequest request, LoginUser operator);
+
+    /**
+     * 删除排名项（仅榜单创建者本人或管理员）：软删该项及其下理由，重排剩余项名次，item_count 原子回退
+     */
+    void deleteItem(Long rankingId, Long itemId, LoginUser operator);
+
+    /**
+     * 编辑排名项（仅榜单创建者本人或管理员）：全量替换名称/描述/配图/来源字段，不动 currentRank
+     */
+    void updateItem(Long rankingId, Long itemId, ItemUpdateRequest request, LoginUser operator);
 
     /**
      * 来源类型字典：key -> 展示名（前端下拉选项单一事实源，需登录）

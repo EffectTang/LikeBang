@@ -216,11 +216,12 @@ onMounted(async () => {
 }
 .card-cover {
   display: block;
-  width: auto;
+  /* 满宽 = 卡片宽（抵消左右内边距），配合 object-fit: cover 让图片内容居中裁剪 */
+  width: calc(100% + 40px);
   height: 150px;
   object-fit: cover;
   border-radius: 10px 10px 0 0;
-  /* 负 margin 抵消 el-card 默认 20px 正文内边距，形成通栏封面 */
+  /* 左右必须 -20px 抵消 el-card 正文内边距形成通栏；用 auto 会把负margin抵消、图框无法拉到边缘导致左空右溢不对称 */
   margin: -20px -20px 12px;
 }
 .card-title {

@@ -13,6 +13,8 @@ import com.likebang.common.utils.DateTimeUtils;
 import com.likebang.common.utils.UserContext;
 import com.likebang.modules.ranking.constant.SourceTypes;
 import com.likebang.modules.ranking.dto.request.RankingCreateRequest;
+import com.likebang.modules.ranking.dto.request.ItemCreateRequest;
+import com.likebang.modules.ranking.dto.request.ItemUpdateRequest;
 import com.likebang.modules.ranking.dto.request.RankingUpdateRequest;
 import com.likebang.modules.ranking.dto.request.ReasonCreateRequest;
 import com.likebang.modules.ranking.dto.request.ReasonUpdateRequest;
@@ -37,9 +39,12 @@ import com.likebang.modules.user.entity.SysUser;
 import com.likebang.modules.user.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -63,6 +68,8 @@ public class RankingServiceImpl implements RankingService {
     private static final int ITEM_REASON_NORMAL = 1;
     /** 理由已删除 */
     private static final int REASON_DELETED = 0;
+    /** 排名项已删除（软删，保留投票明细可恢复） */
+    private static final int ITEM_DELETED = 0;
     /** 可见性：公开 */
     private static final int VISIBILITY_PUBLIC = 1;
 
@@ -390,6 +397,211 @@ public class RankingServiceImpl implements RankingService {
                         RankingReasonVote::getVoteType, (a, b) -> a));
 
         return page.convert(r -> toReasonResponse(r, nicknames, myVotes));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateItemImage(Long rankingId, Long itemId, String imageUrl, LoginUser operator) {
+        if (operator == null) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED);
+        }
+        // 复用排名项子页面校验链：榜单已发布 + 项存在且归属该榜单
+        loadPublishedRanking(rankingId);
+        RankingItem item = requireItemInRanking(rankingId, itemId);
+
+        // 权限沿用理由编辑口径：排名项创建者本人或管理员
+        boolean isOwner = item.getCreatorId() != null
+                && item.getCreatorId().equals(operator.getUserId());
+        if (!isOwner && !operator.isAdmin()) {
+            throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "无权修改该排名项图片");
+        }
+
+        // 单列显式写回：lambdaUpdate().set 会把列真正更新（空白归一为 null 即清空），
+        // 不像 updateById 忽略 null 字段导致"清空"不生效
+        rankingItemMapper.update(null, Wrappers.<RankingItem>lambdaUpdate()
+                .eq(RankingItem::getId, itemId)
+                .set(RankingItem::getImageUrl, StrUtil.trimToNull(imageUrl))
+                .set(RankingItem::getUpdatedAt, DateTimeUtils.now()));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long addItem(Long rankingId, ItemCreateRequest request, LoginUser operator) {
+        Ranking ranking = requireOwnedRanking(rankingId, operator);
+
+        // 当前有效排名项（status=1）
+        List<RankingItem> activeItems = rankingItemMapper.selectList(new LambdaQueryWrapper<RankingItem>()
+                .eq(RankingItem::getRankingId, rankingId)
+                .eq(RankingItem::getStatus, ITEM_REASON_NORMAL));
+        if (ranking.getItemLimit() != null && activeItems.size() >= ranking.getItemLimit()) {
+            throw new BusinessException(ResultCode.BAD_REQUEST.getCode(),
+                    "排名项已达上限（Top " + ranking.getItemLimit() + "），如需新增请先在编辑榜单中调高名次数量");
+        }
+
+        String name = request.getName().trim();
+        // 榜内名称查重（忽略大小写，与 create 同口径）
+        boolean duplicated = activeItems.stream()
+                .anyMatch(i -> i.getName() != null && i.getName().equalsIgnoreCase(name));
+        if (duplicated) {
+            throw new BusinessException(ResultCode.BAD_REQUEST.getCode(), "已存在同名排名项：" + name);
+        }
+
+        LocalDateTime now = DateTimeUtils.now();
+        int nextRank = activeItems.stream()
+                .map(RankingItem::getCurrentRank)
+                .filter(r -> r != null)
+                .max(Integer::compareTo)
+                .orElse(0) + 1;
+
+        RankingItem entity = new RankingItem();
+        entity.setRankingId(rankingId);
+        entity.setCreatorId(operator.getUserId());
+        entity.setName(name);
+        entity.setDescription(StrUtil.blankToDefault(request.getDescription(), null));
+        entity.setImageUrl(StrUtil.blankToDefault(request.getImageUrl(), null));
+        entity.setCurrentRank(nextRank);
+        entity.setScore(BigDecimal.ZERO);
+        entity.setAgreeCount(0L);
+        entity.setOpposeCount(0L);
+        entity.setParticipantCount(0L);
+        entity.setAgreeRate(BigDecimal.ZERO);
+        entity.setReasonCount(0);
+        entity.setStatus(ITEM_REASON_NORMAL);
+        entity.setCreatedAt(now);
+        entity.setUpdatedAt(now);
+        try {
+            rankingItemMapper.insert(entity);
+        } catch (DuplicateKeyException e) {
+            // 兜 uk_ranking_name（MySQL 默认排序规则大小写不敏感）
+            throw new BusinessException(ResultCode.BAD_REQUEST.getCode(), "已存在同名排名项：" + name);
+        }
+
+        // item_count 原子 +1
+        rankingMapper.update(null, Wrappers.<Ranking>lambdaUpdate()
+                .eq(Ranking::getId, rankingId)
+                .setSql("item_count = item_count + 1"));
+        return entity.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteItem(Long rankingId, Long itemId, LoginUser operator) {
+        requireOwnedRanking(rankingId, operator);
+        RankingItem item = requireItemInRanking(rankingId, itemId);
+
+        LocalDateTime now = DateTimeUtils.now();
+        // 软删该项（保留投票明细，随项隐藏而失效，可恢复）
+        rankingItemMapper.update(null, Wrappers.<RankingItem>lambdaUpdate()
+                .eq(RankingItem::getId, item.getId())
+                .set(RankingItem::getStatus, ITEM_DELETED)
+                .set(RankingItem::getUpdatedAt, now));
+        // 级联软删该项下理由
+        rankingReasonMapper.update(null, Wrappers.<RankingReason>lambdaUpdate()
+                .eq(RankingReason::getItemId, itemId)
+                .eq(RankingReason::getStatus, ITEM_REASON_NORMAL)
+                .set(RankingReason::getStatus, REASON_DELETED)
+                .set(RankingReason::getUpdatedAt, now));
+
+        // 剩余有效项重排 current_rank 为 1..N，关闭删除留下的空位（得分驱动的物化重排仍留给 P0）
+        List<RankingItem> remain = rankingItemMapper.selectList(new LambdaQueryWrapper<RankingItem>()
+                .eq(RankingItem::getRankingId, rankingId)
+                .eq(RankingItem::getStatus, ITEM_REASON_NORMAL)
+                .orderByAsc(RankingItem::getCurrentRank)
+                .orderByAsc(RankingItem::getId));
+        int rank = 1;
+        for (RankingItem it : remain) {
+            if (it.getCurrentRank() == null || it.getCurrentRank() != rank) {
+                rankingItemMapper.update(null, Wrappers.<RankingItem>lambdaUpdate()
+                        .eq(RankingItem::getId, it.getId())
+                        .set(RankingItem::getCurrentRank, rank));
+            }
+            rank++;
+        }
+
+        // item_count 原子 -1，下限 0
+        rankingMapper.update(null, Wrappers.<Ranking>lambdaUpdate()
+                .eq(Ranking::getId, rankingId)
+                .setSql("item_count = GREATEST(item_count - 1, 0)"));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateItem(Long rankingId, Long itemId, ItemUpdateRequest request, LoginUser operator) {
+        Ranking ranking = requireOwnedRanking(rankingId, operator);
+        requireItemInRanking(rankingId, itemId);
+
+        String name = request.getName().trim();
+        // 榜内查重（忽略大小写，排除自身）
+        List<RankingItem> siblings = rankingItemMapper.selectList(new LambdaQueryWrapper<RankingItem>()
+                .eq(RankingItem::getRankingId, rankingId)
+                .eq(RankingItem::getStatus, ITEM_REASON_NORMAL)
+                .ne(RankingItem::getId, itemId));
+        boolean duplicated = siblings.stream()
+                .anyMatch(i -> i.getName() != null && i.getName().equalsIgnoreCase(name));
+        if (duplicated) {
+            throw new BusinessException(ResultCode.BAD_REQUEST.getCode(), "已存在同名排名项：" + name);
+        }
+
+        // 来源能力由分类配置驱动（禁止硬编码分类判断）：未开启则整组来源列置 null
+        String sourceType = null;
+        String sourceName = null;
+        String sourceDesc = null;
+        if (isSourceEnabled(ranking.getCategoryId())) {
+            if (StrUtil.isNotBlank(request.getSourceType()) && !SourceTypes.isValid(request.getSourceType())) {
+                throw new BusinessException(ResultCode.BAD_REQUEST.getCode(),
+                        "非法的来源类型：" + request.getSourceType());
+            }
+            sourceType = StrUtil.blankToDefault(request.getSourceType(), null);
+            sourceName = normalizeSourceName(request.getSourceName());
+            sourceDesc = StrUtil.blankToDefault(request.getSourceDesc(), null);
+        }
+
+        // 全量替换：lambdaUpdate().set 显式写回每一列（空白归一为 null 即清空），
+        // 绕开 updateById 忽略 null 导致"清空不生效"
+        try {
+            rankingItemMapper.update(null, Wrappers.<RankingItem>lambdaUpdate()
+                    .eq(RankingItem::getId, itemId)
+                    .set(RankingItem::getName, name)
+                    .set(RankingItem::getDescription, StrUtil.blankToDefault(request.getDescription(), null))
+                    .set(RankingItem::getImageUrl, StrUtil.blankToDefault(request.getImageUrl(), null))
+                    .set(RankingItem::getSourceType, sourceType)
+                    .set(RankingItem::getSourceName, sourceName)
+                    .set(RankingItem::getSourceDesc, sourceDesc)
+                    .set(RankingItem::getUpdatedAt, DateTimeUtils.now()));
+        } catch (DuplicateKeyException e) {
+            // 兜 uk_ranking_name（并发下的同名）
+            throw new BusinessException(ResultCode.BAD_REQUEST.getCode(), "已存在同名排名项：" + name);
+        }
+    }
+
+    /**
+     * 分类是否开启来源能力（source_enabled=1）；分类不存在或未开启均视为否
+     */
+    private boolean isSourceEnabled(Long categoryId) {
+        if (categoryId == null) {
+            return false;
+        }
+        RankingCategory category = rankingCategoryMapper.selectById(categoryId);
+        return category != null && Integer.valueOf(1).equals(category.getSourceEnabled());
+    }
+
+    /**
+     * 榜单结构管理权限：仅创建者本人或管理员，且榜单存在未删除
+     */
+    private Ranking requireOwnedRanking(Long rankingId, LoginUser operator) {
+        if (operator == null) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED);
+        }
+        Ranking ranking = rankingMapper.selectById(rankingId);
+        if (ranking == null || ranking.getStatus() == STATUS_DELETED) {
+            throw new BusinessException(ResultCode.NOT_FOUND.getCode(), "榜单不存在");
+        }
+        boolean isOwner = ranking.getCreatorId() != null
+                && ranking.getCreatorId().equals(operator.getUserId());
+        if (!isOwner && !operator.isAdmin()) {
+            throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "无权管理该榜单的排名项");
+        }
+        return ranking;
     }
 
     /**

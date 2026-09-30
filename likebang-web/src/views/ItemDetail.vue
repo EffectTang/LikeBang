@@ -8,10 +8,20 @@
     <el-card v-loading="itemLoading" class="main-card" shadow="never">
       <div class="main-head">
         <div class="main-cover">
-          <img v-if="item?.imageUrl" :src="resolveImage(item.imageUrl)" alt="" />
-          <div v-else class="cover-placeholder">
-            <el-icon :size="28"><Picture /></el-icon>
-          </div>
+          <!-- 本人/管理员：上传即落库；其他人：静态展示或占位 -->
+          <image-upload
+            v-if="canEditItem"
+            :model-value="item?.imageUrl || ''"
+            :disabled="savingImage"
+            label="上传配图"
+            @update:model-value="onItemImageChange"
+          />
+          <template v-else>
+            <img v-if="item?.imageUrl" :src="resolveImage(item.imageUrl)" alt="" />
+            <div v-else class="cover-placeholder">
+              <el-icon :size="28"><Picture /></el-icon>
+            </div>
+          </template>
         </div>
         <div class="main-info">
           <div class="main-name">
@@ -19,7 +29,7 @@
             {{ item?.name }}
           </div>
           <div v-if="item?.sourceName" class="main-source">
-            ——《{{ item.sourceName }}》<template v-if="item.sourceType"> · {{ sourceLabel(item.sourceType) }}</template>
+            ——《{{ item.sourceName }}》
           </div>
           <div v-if="item?.sourceDesc" class="main-source">{{ item.sourceDesc }}</div>
           <div v-if="item?.description" class="main-desc">{{ item.description }}</div>
@@ -218,7 +228,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Picture, Delete, EditPen } from '@element-plus/icons-vue'
 import {
   getRankingItem,
-  getSourceTypes,
+  updateItemImage,
   listItemReasons,
   addReason as apiAddReason,
   updateReason as apiUpdateReason,
@@ -288,11 +298,28 @@ function rankClass(rank) {
   return ''
 }
 
-// ---- 来源类型字典：key -> 展示名（与创建表单同一事实源，失败降级显 key） ----
-const sourceTypeLabels = ref({})
+// ---- 排名项配图：仅创建者本人或管理员可改（口径同理由编辑）----
+const canEditItem = computed(() => {
+  if (!userStore.userInfo || !item.value) return false
+  return userStore.isAdmin ||
+    (item.value.creatorId != null &&
+      String(item.value.creatorId) === String(userStore.userInfo.id))
+})
 
-function sourceLabel(type) {
-  return sourceTypeLabels.value[type] || type
+const savingImage = ref(false)
+
+// ImageUpload 上传后回抛相对路径（清空时为空串），随即落库并就地更新主体图
+async function onItemImageChange(url) {
+  savingImage.value = true
+  try {
+    await updateItemImage(rankingId, itemId, url || '')
+    if (item.value) item.value.imageUrl = url || null
+    ElMessage.success(url ? '配图已更新' : '配图已移除')
+  } catch (e) {
+    // 失败保持原图（request 拦截器已弹错）
+  } finally {
+    savingImage.value = false
+  }
 }
 
 // ---- 理由流：追加式分页（内容流不用页码跳页，回避实时排序下的翻页漂移）----
@@ -513,7 +540,6 @@ function handleDelete(r) {
 onMounted(() => {
   loadItem()
   loadPage(1)
-  getSourceTypes().then(res => { sourceTypeLabels.value = res.data || {} }).catch(() => {})
 })
 </script>
 
