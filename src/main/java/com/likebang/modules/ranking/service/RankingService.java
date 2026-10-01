@@ -31,6 +31,11 @@ public interface RankingService {
     IPage<RankingResponse> pagePublic(PageParam pageParam, Long categoryId);
 
     /**
+     * 分页浏览某用户的公开榜单（他人主页用）：仅 status=已发布 且 visibility=公开
+     */
+    IPage<RankingResponse> pageByAuthor(PageParam pageParam, Long authorId);
+
+    /**
      * 分页浏览我创建的榜单（排除已删除，可按状态筛选），返回含状态供前端展示
      */
     IPage<RankingResponse> pageMine(PageParam pageParam, Integer status, LoginUser operator);

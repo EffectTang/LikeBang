@@ -22,6 +22,11 @@ const routes = [
     component: () => import('@/views/MyRankings.vue')
   },
   {
+    path: '/users/:id',
+    name: 'UserProfile',
+    component: () => import('@/views/UserProfile.vue')
+  },
+  {
     path: '/rankings/:id',
     name: 'RankingDetail',
     component: () => import('@/views/RankingDetail.vue')

@@ -8,6 +8,10 @@ module.exports = {
   // 微信登录：body { code, nickname?, avatarUrl? }，code 由 wx.login 获取，后端换 openid 签发同款 JWT
   wxLogin: (form) => http.post('/user/auth/wx-login', form),
   me: () => http.get('/user/auth/me'),
+  // 自助改资料：body { nickname, avatarUrl, intro }，头像/简介传空串=清空，返回最新用户信息
+  updateProfile: (form) => http.put('/user/auth/profile', form),
+  // 他人公开资料（脱敏：昵称/头像/简介/加入时间，不含邮箱手机号）
+  getPublicProfile: (userId) => http.get(`/users/${userId}/profile`),
 
   // ---- 分类 / 来源字典 ----
   listCategories: () => http.get('/categories'),
@@ -17,6 +21,8 @@ module.exports = {
   // ---- 榜单浏览 / 详情 ----
   listPublicRankings: (params) => http.get('/rankings/public', params),
   listMyRankings: (params) => http.get('/rankings/mine', params),
+  // 某用户的公开榜单（他人主页，分页，仅已发布+公开）
+  listUserRankings: (userId, params) => http.get(`/rankings/by-user/${userId}`, params),
   getRankingDetail: (id) => http.get(`/rankings/${id}`),
   createRanking: (data) => http.post('/rankings', data),
   updateRanking: (id, data) => http.put(`/rankings/${id}`, data),

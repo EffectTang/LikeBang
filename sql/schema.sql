@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS sys_user (
     openid VARCHAR(64) DEFAULT NULL COMMENT '微信小程序 openid，微信登录用户唯一标识；账号密码用户为 NULL',
     nickname VARCHAR(32) NOT NULL COMMENT '用户昵称',
     avatar_url VARCHAR(512) DEFAULT NULL COMMENT '头像地址',
+    intro VARCHAR(500) DEFAULT NULL COMMENT '自我介绍（用户可自助填写/清空）',
 
     email VARCHAR(128) DEFAULT NULL COMMENT '邮箱，账号密码注册必填且全局唯一；微信登录用户可为空',
     phone VARCHAR(20) DEFAULT NULL COMMENT '手机号',
@@ -394,6 +395,11 @@ ALTER TABLE sys_user
     ADD COLUMN openid VARCHAR(64) DEFAULT NULL COMMENT '微信小程序 openid，微信登录用户唯一标识；账号密码用户为 NULL' AFTER username;
 ALTER TABLE sys_user ADD UNIQUE KEY uk_openid (openid);
 ALTER TABLE sys_user MODIFY COLUMN email VARCHAR(128) DEFAULT NULL COMMENT '邮箱，账号密码注册必填且全局唯一；微信登录用户可为空';
+
+-- 20 迁移：个人资料自助编辑 —— 为已存在的旧 sys_user 表补自我介绍列
+-- （新库由上方 CREATE 已含；一次性迁移，重复执行报“重复列”错误可忽略）
+ALTER TABLE sys_user
+    ADD COLUMN intro VARCHAR(500) DEFAULT NULL COMMENT '自我介绍（用户可自助填写/清空）' AFTER avatar_url;
 
 
   

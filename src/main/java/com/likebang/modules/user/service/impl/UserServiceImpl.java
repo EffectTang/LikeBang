@@ -15,9 +15,11 @@ import com.likebang.common.auth.UserRole;
 import com.likebang.common.result.ResultCode;
 import com.likebang.config.auth.AuthProperties;
 import com.likebang.modules.user.dto.request.LoginRequest;
+import com.likebang.modules.user.dto.request.ProfileUpdateRequest;
 import com.likebang.modules.user.dto.request.RegisterRequest;
 import com.likebang.modules.user.dto.request.WxLoginRequest;
 import com.likebang.modules.user.dto.response.LoginResponse;
+import com.likebang.modules.user.dto.response.PublicProfileResponse;
 import com.likebang.modules.user.dto.response.UserInfoResponse;
 import com.likebang.modules.user.entity.SysUser;
 import com.likebang.modules.user.mapper.SysUserMapper;
@@ -33,6 +35,7 @@ import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -213,6 +216,76 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserInfoResponse currentUser(Long userId) {
         return UserInfoResponse.from(getExistingById(userId));
+    }
+
+    /**
+     * 他人公开资料（脱敏投影）：只取可展示字段，禁用/删除账号一律按"不存在"处理，
+     * 避免经主页接口探测账号状态或泄露 email/phone/role 等敏感信息
+     */
+    @Override
+    public PublicProfileResponse publicProfile(Long targetUserId) {
+        SysUser user = getExistingById(targetUserId);
+        if (user.getStatus() == null || user.getStatus() != 1) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+        PublicProfileResponse response = new PublicProfileResponse();
+        response.setId(user.getId());
+        response.setNickname(user.getNickname());
+        response.setAvatarUrl(user.getAvatarUrl());
+        response.setIntro(user.getIntro());
+        response.setCreatedAt(user.getCreatedAt());
+        return response;
+    }
+
+    /**
+     * 自助修改个人资料。
+     * <p>
+     * 局部更新用 lambdaUpdate().set 显式写回目标列（updateById 会忽略 null 导致"清空"不生效）：
+     * 头像/简介传空即落 null 完成清空；昵称 NOT NULL，空白按"不修改"处理。
+     * 无实际变更时短路返回，不发多余 UPDATE。
+     */
+    @Override
+    public UserInfoResponse updateProfile(Long userId, ProfileUpdateRequest request) {
+        SysUser current = getExistingById(userId);
+
+        // 昵称不可清空：null/空白 = 不修改
+        String nickname = StrUtil.isNotBlank(request.getNickname())
+                ? StrUtil.subPre(request.getNickname().trim(), 32) : null;
+        boolean touchNickname = nickname != null && !nickname.equals(current.getNickname());
+        // 头像/简介：null = 不修改；非 null 时按空/非空决定清空或写入
+        boolean touchAvatar = request.getAvatarUrl() != null;
+        boolean touchIntro = request.getIntro() != null;
+        String avatarUrl = touchAvatar ? normalizeAvatarUrl(request.getAvatarUrl()) : null;
+        String intro = touchIntro ? blankToNull(request.getIntro()) : null;
+
+        if (!touchNickname && !touchAvatar && !touchIntro) {
+            return UserInfoResponse.from(current);
+        }
+
+        sysUserMapper.update(null, Wrappers.<SysUser>lambdaUpdate()
+                .eq(SysUser::getId, userId)
+                .set(touchNickname, SysUser::getNickname, nickname)
+                .set(touchAvatar, SysUser::getAvatarUrl, avatarUrl)
+                .set(touchIntro, SysUser::getIntro, intro));
+
+        log.info("用户更新个人资料: userId={}, nickname={}, avatar={}, intro={}",
+                userId, touchNickname, touchAvatar, touchIntro);
+        return UserInfoResponse.from(getExistingById(userId));
+    }
+
+    /**
+     * 头像地址校验：空=清空(null)；仅接受站内 /uploads/ 相对路径或 http(s) 外链，
+     * 拒绝 javascript:/data: 等危险协议，防经 <img src> 触发存储型 XSS
+     */
+    private String normalizeAvatarUrl(String raw) {
+        if (StrUtil.isBlank(raw)) {
+            return null;
+        }
+        String value = raw.trim();
+        if (value.startsWith("/uploads/") || value.startsWith("https://") || value.startsWith("http://")) {
+            return value;
+        }
+        throw new BusinessException(ResultCode.BAD_REQUEST.getCode(), "头像地址格式不合法");
     }
 
     /**

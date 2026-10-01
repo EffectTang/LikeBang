@@ -1,51 +1,63 @@
-.page {
+.user-page {
   padding: 24rpx;
 }
-.search-bar {
+
+/* 资料头部 */
+.profile-head {
   display: flex;
   align-items: center;
-  gap: 16rpx;
-  margin-bottom: 20rpx;
-}
-.search-box {
-  flex: 1;
+  gap: 24rpx;
   background: #fff;
-  border-radius: 40rpx;
-  padding: 0 32rpx;
+  border-radius: 16rpx;
+  padding: 32rpx 24rpx;
 }
-.search-input {
-  height: 72rpx;
-  font-size: 28rpx;
+.avatar-box {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #ecf0f5;
+  flex-shrink: 0;
 }
-.create-btn {
-  background: #409eff;
-  color: #fff;
-  border-radius: 40rpx;
-  padding: 0 28rpx;
-  height: 72rpx;
-  line-height: 72rpx;
-  font-size: 28rpx;
-  white-space: nowrap;
+.avatar {
+  width: 128rpx;
+  height: 128rpx;
 }
-
-.cat-bar {
-  white-space: nowrap;
-  margin-bottom: 20rpx;
+.avatar.ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 56rpx;
+  color: #a8b3c5;
 }
-.cat {
-  display: inline-block;
-  padding: 10rpx 28rpx;
-  margin-right: 16rpx;
+.profile-name {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #303133;
+}
+.profile-join {
+  font-size: 24rpx;
+  color: #909399;
+  margin-top: 8rpx;
+}
+.profile-intro {
   background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-top: 20rpx;
   color: #606266;
-  border-radius: 30rpx;
-  font-size: 26rpx;
-}
-.cat.active {
-  background: #409eff;
-  color: #fff;
+  font-size: 28rpx;
+  line-height: 1.6;
 }
 
+.sec-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #303133;
+  margin: 32rpx 0 20rpx;
+}
+
+/* 公开榜单卡片（样式对齐发现页） */
 .rank-card {
   background: #fff;
   border-radius: 16rpx;
@@ -92,8 +104,4 @@
   display: flex;
   align-items: center;
   margin-top: 16rpx;
-}
-.creator {
-  color: #409eff;
-  font-size: 24rpx;
 }

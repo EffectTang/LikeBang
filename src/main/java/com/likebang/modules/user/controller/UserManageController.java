@@ -9,8 +9,10 @@ import com.likebang.modules.user.dto.UserPageParam;
 import com.likebang.modules.user.dto.request.UserCreateRequest;
 import com.likebang.modules.user.dto.request.UserUpdateRequest;
 import com.likebang.modules.user.dto.request.UserRoleUpdateRequest;
+import com.likebang.modules.user.dto.response.PublicProfileResponse;
 import com.likebang.modules.user.dto.response.UserInfoResponse;
 import com.likebang.modules.user.service.UserAdminService;
+import com.likebang.modules.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -30,7 +32,10 @@ import org.springframework.web.bind.annotation.RestController;
  * 与 /user/auth（自助域：注册/登录/me）按操作主体拆分，路径 /users 天然不在
  * 免登录白名单内，登录后由 @RequireRole 分层：
  * 查询/编辑 = 管理员 + 运营管理员；新增/角色变更/删除 = 仅管理员。
- * 管理员代建用户（POST /users）仅对 ADMIN 开放，与注册共用同口径口令策略；内置超管账号名保留不可占用。
+ * 管理员代建用户（POST /users）仅对 ADMIN 开放，与注册共用同口径口令策略，内置超管账号名保留不可占用。
+ * <p>
+ * 例外：{@code GET /users/{id}/profile} 是社区“他人主页”的公开读操作，任何登录用户可访问，
+ * 故不挂 {@code @RequireRole}；其脱敏由 {@link PublicProfileResponse} 投影从结构上保证。
  */
 @RestController
 @RequestMapping("/users")
@@ -38,6 +43,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserManageController {
 
     private final UserAdminService userAdminService;
+    private final UserService userService;
+
+    /**
+     * 他人主页：仅返回脱敏公开资料（昵称/头像/简介/加入时间），任何登录用户可见
+     */
+    @GetMapping("/{id}/profile")
+    public Result<PublicProfileResponse> publicProfile(@PathVariable Long id) {
+        return Result.success(userService.publicProfile(id));
+    }
 
     /**
      * 分页查询用户（关键词匹配用户名/昵称/邮箱，可按状态、角色筛选）

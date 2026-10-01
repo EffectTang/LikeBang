@@ -35,6 +35,11 @@ export function listMyRankings(params) {
   return request.get('/rankings/mine', { params })
 }
 
+// 某用户的公开榜单（他人主页，分页，仅已发布+公开）
+export function listUserRankings(userId, params) {
+  return request.get(`/rankings/by-user/${userId}`, { params })
+}
+
 // 编辑榜单元数据（创建者本人或管理员；null 字段不修改）
 export function updateRanking(id, data) {
   return request.put(`/rankings/${id}`, data)

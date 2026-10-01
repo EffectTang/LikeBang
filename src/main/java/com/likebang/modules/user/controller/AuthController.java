@@ -3,6 +3,7 @@ package com.likebang.modules.user.controller;
 import com.likebang.common.result.Result;
 import com.likebang.common.utils.UserContext;
 import com.likebang.modules.user.dto.request.LoginRequest;
+import com.likebang.modules.user.dto.request.ProfileUpdateRequest;
 import com.likebang.modules.user.dto.request.RegisterRequest;
 import com.likebang.modules.user.dto.request.WxLoginRequest;
 import com.likebang.modules.user.dto.response.LoginResponse;
@@ -12,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -56,5 +58,14 @@ public class AuthController {
     @GetMapping("/me")
     public Result<UserInfoResponse> me() {
         return Result.success(userService.currentUser(UserContext.requireUserId()));
+    }
+
+    /**
+     * 自助修改个人资料（昵称/头像/自我介绍），返回最新信息供前端刷新缓存。
+     * 仅能修改本人：userId 取自登录态，忽略任何前端传入的身份标识
+     */
+    @PutMapping("/profile")
+    public Result<UserInfoResponse> updateProfile(@Valid @RequestBody ProfileUpdateRequest request) {
+        return Result.success(userService.updateProfile(UserContext.requireUserId(), request));
     }
 }

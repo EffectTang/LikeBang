@@ -5,7 +5,9 @@
     "pages/detail/detail",
     "pages/item/item",
     "pages/create/create",
-    "pages/login/login"
+    "pages/login/login",
+    "pages/profile/profile",
+    "pages/user/user"
   ],
   "window": {
     "backgroundTextStyle": "light",

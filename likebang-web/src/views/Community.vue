@@ -61,7 +61,7 @@
         </div>
         <div class="card-footer">
           <el-tag v-if="r.categoryName" size="small" type="info">{{ r.categoryName }}</el-tag>
-          <span class="creator">@{{ r.creatorNickname || '匿名' }}</span>
+          <span class="creator" @click.stop="goUser(r.creatorId)">@{{ r.creatorNickname || '匿名' }}</span>
         </div>
       </el-card>
     </div>
@@ -146,6 +146,11 @@ function selectCategory(id) {
 
 function goDetail(id) {
   router.push(`/rankings/${id}`)
+}
+
+// 点击创建者昵称进入他人主页；creatorId 缺失（历史数据）时不跳转
+function goUser(id) {
+  if (id) router.push(`/users/${id}`)
 }
 
 function openCreate() {
@@ -260,6 +265,7 @@ onMounted(async () => {
 .creator {
   color: #409eff;
   font-size: 13px;
+  cursor: pointer;
 }
 .pager {
   display: flex;

@@ -1,0 +1,90 @@
+.profile-page {
+  padding: 24rpx;
+}
+
+.avatar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24rpx 0 8rpx;
+}
+
+.avatar-box {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #ecf0f5;
+}
+
+.avatar {
+  width: 160rpx;
+  height: 160rpx;
+}
+
+.avatar.ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 64rpx;
+  color: #a8b3c5;
+}
+
+.avatar-actions {
+  margin-top: 16rpx;
+  display: flex;
+  gap: 32rpx;
+}
+
+.avatar-btn {
+  font-size: 26rpx;
+  color: #409eff;
+}
+
+.avatar-btn.danger {
+  color: #f56c6c;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-top: 20rpx;
+}
+
+.field .label {
+  font-size: 24rpx;
+  color: #909399;
+  margin-bottom: 12rpx;
+}
+
+.readonly {
+  font-size: 30rpx;
+  color: #606266;
+}
+
+.input {
+  font-size: 30rpx;
+  color: #303133;
+}
+
+.textarea {
+  width: 100%;
+  height: 160rpx;
+  font-size: 30rpx;
+  color: #303133;
+}
+
+.counter {
+  text-align: right;
+  font-size: 22rpx;
+  color: #c0c4cc;
+}
+
+.save-btn {
+  margin-top: 40rpx;
+  background: #409eff;
+  color: #ffffff;
+  border-radius: 16rpx;
+  font-size: 32rpx;
+}

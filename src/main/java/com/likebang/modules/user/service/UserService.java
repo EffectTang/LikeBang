@@ -1,9 +1,11 @@
 package com.likebang.modules.user.service;
 
 import com.likebang.modules.user.dto.request.LoginRequest;
+import com.likebang.modules.user.dto.request.ProfileUpdateRequest;
 import com.likebang.modules.user.dto.request.RegisterRequest;
 import com.likebang.modules.user.dto.request.WxLoginRequest;
 import com.likebang.modules.user.dto.response.LoginResponse;
+import com.likebang.modules.user.dto.response.PublicProfileResponse;
 import com.likebang.modules.user.dto.response.UserInfoResponse;
 import com.likebang.modules.user.entity.SysUser;
 
@@ -37,4 +39,14 @@ public interface UserService {
      * 查询当前登录用户信息
      */
     UserInfoResponse currentUser(Long userId);
+
+    /**
+     * 自助修改个人资料（昵称/头像/自我介绍），返回最新用户信息供前端刷新缓存
+     */
+    UserInfoResponse updateProfile(Long userId, ProfileUpdateRequest request);
+
+    /**
+     * 查询他人公开资料（脱敏投影，用于他人主页）：目标不存在/已删除/已禁用一律按"不存在"处理
+     */
+    PublicProfileResponse publicProfile(Long targetUserId);
 }

@@ -58,6 +58,16 @@ public class RankingController {
     }
 
     /**
+     * 某用户的公开榜单（分页，他人主页用；需登录，仅返回已发布+公开）
+     */
+    @GetMapping("/by-user/{userId}")
+    public Result<IPage<RankingResponse>> pageByUser(
+            @PathVariable Long userId,
+            @ModelAttribute PageParam pageParam) {
+        return Result.success(rankingService.pageByAuthor(pageParam, userId));
+    }
+
+    /**
      * 我创建的榜单（分页，排除已删除，需登录）
      */
     @GetMapping("/mine")

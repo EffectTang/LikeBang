@@ -31,6 +31,9 @@
   font-size: 24rpx;
   margin-top: 16rpx;
 }
+.creator-link {
+  color: #409eff;
+}
 
 /* 管理栏 */
 .manage-bar {

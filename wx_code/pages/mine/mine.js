@@ -9,6 +9,7 @@ Page({
   data: {
     user: null,
     avatarChar: '',
+    avatarFull: '',
     isLogin: false,
     list: [],
     current: 1,
@@ -20,7 +21,11 @@ Page({
   onShow() {
     const isLogin = auth.isLogin()
     const user = auth.getUser()
-    this.setData({ isLogin, user, avatarChar: this.avatarOf(user) })
+    this.setData({
+      isLogin, user,
+      avatarChar: this.avatarOf(user),
+      avatarFull: user ? util.resolveImage(user.avatarUrl) : ''
+    })
     if (isLogin) {
       this.refreshMe()
       this.loadList(true)
@@ -39,8 +44,12 @@ Page({
   refreshMe() {
     api.me().then((u) => {
       auth.setUser(u)
-      this.setData({ user: u, avatarChar: this.avatarOf(u) })
+      this.setData({ user: u, avatarChar: this.avatarOf(u), avatarFull: util.resolveImage(u.avatarUrl) })
     }).catch(() => {})
+  },
+
+  goProfile() {
+    wx.navigateTo({ url: '/pages/profile/profile' })
   },
 
   loadList(reset) {

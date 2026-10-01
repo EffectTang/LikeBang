@@ -1,13 +1,15 @@
 <view class="mine-page">
-  <!-- 个人卡片 -->
-  <view class="profile card">
+  <!-- 个人卡片（点击进入个人资料编辑） -->
+  <view class="profile card" bindtap="goProfile">
     <block wx:if="{{isLogin}}">
-      <view class="avatar">{{avatarChar}}</view>
+      <image wx:if="{{avatarFull}}" class="avatar img" src="{{avatarFull}}" mode="aspectFill" />
+      <view wx:else class="avatar">{{avatarChar}}</view>
       <view class="p-info flex-1">
         <view class="p-name">{{user.nickname || user.username}}</view>
         <view class="p-sub">@{{user.username}} · {{user.role === 1 ? '超级管理员' : (user.role === 2 ? '运营管理员' : '普通用户')}}</view>
       </view>
-      <view class="logout" bindtap="logout">退出</view>
+      <view class="p-edit">编辑 ›</view>
+      <view class="logout" catchtap="logout">退出</view>
     </block>
     <block wx:else>
       <view class="avatar ph">👤</view>

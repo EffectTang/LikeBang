@@ -36,6 +36,13 @@ export const useUserStore = defineStore('user', {
       localStorage.setItem('lb_user', JSON.stringify(res.data))
       return res.data
     },
+    // 自助修改资料：后端返回最新用户信息，直接刷新缓存，免二次 fetchMe
+    async updateProfile(form) {
+      const res = await request.put('/user/auth/profile', form)
+      this.userInfo = res.data
+      localStorage.setItem('lb_user', JSON.stringify(res.data))
+      return res.data
+    },
     logout() {
       this.token = ''
       this.userInfo = null

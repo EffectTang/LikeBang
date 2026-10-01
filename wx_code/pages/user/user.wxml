@@ -1,0 +1,40 @@
+<view class="user-page">
+  <!-- 资料头部（仅脱敏字段：昵称/头像/简介/加入时间） -->
+  <view class="profile-head" wx:if="{{profile}}">
+    <view class="avatar-box">
+      <image wx:if="{{avatarPrev}}" class="avatar" src="{{avatarPrev}}" mode="aspectFill" />
+      <view wx:else class="avatar ph">{{avatarChar}}</view>
+    </view>
+    <view class="profile-info">
+      <view class="profile-name">{{profile.nickname || '匿名用户'}}</view>
+      <view class="profile-join" wx:if="{{joinDate}}">加入于 {{joinDate}}</view>
+    </view>
+  </view>
+  <view class="profile-intro" wx:if="{{profile}}">{{profile.intro || 'TA 还没有填写自我介绍'}}</view>
+
+  <!-- TA 的公开榜单 -->
+  <view class="sec-title">TA 的公开榜单（{{total}}）</view>
+  <view wx:if="{{!loading && list.length === 0}}" class="empty">TA 还没有公开榜单</view>
+  <view class="list">
+    <view wx:for="{{list}}" wx:key="id" class="rank-card" data-id="{{item.id}}" bindtap="goDetail">
+      <image wx:if="{{item.cover}}" class="card-cover" src="{{item.cover}}" mode="aspectFill" />
+      <view wx:else class="card-cover cover-ph">🏆</view>
+      <view class="card-body">
+        <view class="card-title">{{item.title}}</view>
+        <view class="card-desc">{{item.description || '暂无描述'}}</view>
+        <view class="card-meta">
+          <text>🏆 Top {{item.itemLimit}}</text>
+          <text>📋 {{item.itemCount}} 项</text>
+          <text>👁 {{item.viewCount}}</text>
+        </view>
+        <view class="card-foot">
+          <text class="tag" wx:if="{{item.categoryName}}">{{item.categoryName}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{loadingMore}}" class="loading-tip">加载中…</view>
+  <view wx:elif="{{!hasMore && list.length > 0}}" class="loading-tip">没有更多了</view>
+  <view wx:if="{{loading && list.length === 0}}" class="loading-tip">加载中…</view>
+</view>

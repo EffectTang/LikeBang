@@ -43,6 +43,11 @@ public class SysUser implements Serializable {
     private String avatarUrl;
 
     /**
+     * 自我介绍（用户可自助填写，可空）
+     */
+    private String intro;
+
+    /**
      * 邮箱
      */
     private String email;

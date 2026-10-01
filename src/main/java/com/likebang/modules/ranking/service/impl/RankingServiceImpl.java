@@ -191,6 +191,17 @@ public class RankingServiceImpl implements RankingService {
     }
 
     @Override
+    public IPage<RankingResponse> pageByAuthor(PageParam pageParam, Long authorId) {
+        LambdaQueryWrapper<Ranking> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Ranking::getCreatorId, authorId)
+                .eq(Ranking::getStatus, STATUS_PUBLISHED)
+                .eq(Ranking::getVisibility, VISIBILITY_PUBLIC);
+        applyKeyword(wrapper, pageParam.getKeyword());
+        wrapper.orderByDesc(Ranking::getCreatedAt);
+        return toResponsePage(pageParam, wrapper);
+    }
+
+    @Override
     public IPage<RankingResponse> pageMine(PageParam pageParam, Integer status, LoginUser operator) {
         if (operator == null) {
             throw new BusinessException(ResultCode.UNAUTHORIZED);

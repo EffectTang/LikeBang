@@ -183,6 +183,12 @@ Page({
     wx.navigateTo({ url: `/pages/item/item?id=${this.data.id}&itemId=${it.id}` })
   },
 
+  // 点击发起人进入他人主页；creatorId 缺失（历史数据）时不跳转
+  goUser(e) {
+    const id = e.currentTarget.dataset.id
+    if (id) wx.navigateTo({ url: '/pages/user/user?id=' + id })
+  },
+
   // ---- 图片预览 ----
   preview(e) {
     this.setData({ previewUrl: e.currentTarget.dataset.url })

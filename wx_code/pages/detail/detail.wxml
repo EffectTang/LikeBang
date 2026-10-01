@@ -7,7 +7,7 @@
     <view class="hero-desc" wx:if="{{detail.description}}">{{detail.description}}</view>
     <view class="hero-meta">
       <text class="tag" wx:if="{{detail.categoryName}}">{{detail.categoryName}}</text>
-      <text>@{{detail.creatorNickname || '匿名'}}</text>
+      <text class="creator-link" data-id="{{detail.creatorId}}" bindtap="goUser">@{{detail.creatorNickname || '匿名'}}</text>
       <text>🏆 Top {{detail.itemLimit}}</text>
       <text>👥 {{detail.participantCount}}</text>
       <text>👁 {{detail.viewCount}}</text>

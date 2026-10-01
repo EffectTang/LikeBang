@@ -19,6 +19,11 @@ public class UserInfoResponse {
 
     private String avatarUrl;
 
+    /**
+     * 自我介绍
+     */
+    private String intro;
+
     private String email;
 
     private String phone;
@@ -43,6 +48,7 @@ public class UserInfoResponse {
         response.setUsername(user.getUsername());
         response.setNickname(user.getNickname());
         response.setAvatarUrl(user.getAvatarUrl());
+        response.setIntro(user.getIntro());
         response.setEmail(user.getEmail());
         response.setPhone(user.getPhone());
         response.setStatus(user.getStatus());

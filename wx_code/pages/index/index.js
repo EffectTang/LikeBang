@@ -70,6 +70,7 @@ Page({
       itemLimit: r.itemLimit,
       itemCount: r.itemCount,
       viewCount: r.viewCount,
+      creatorId: r.creatorId,
       creatorNickname: r.creatorNickname || '匿名'
     }
   },
@@ -90,6 +91,12 @@ Page({
 
   goDetail(e) {
     wx.navigateTo({ url: '/pages/detail/detail?id=' + e.currentTarget.dataset.id })
+  },
+
+  // 点击创建者进入他人主页；creatorId 缺失（历史数据）时不跳转
+  goUser(e) {
+    const id = e.currentTarget.dataset.id
+    if (id) wx.navigateTo({ url: '/pages/user/user?id=' + id })
   },
 
   goCreate() {

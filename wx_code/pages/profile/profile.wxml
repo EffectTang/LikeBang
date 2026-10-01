@@ -1,0 +1,34 @@
+<view class="profile-page">
+  <!-- 头像 -->
+  <view class="avatar-wrap">
+    <view class="avatar-box" bindtap="chooseAvatar">
+      <image wx:if="{{avatarPrev}}" class="avatar" src="{{avatarPrev}}" mode="aspectFill" />
+      <view wx:else class="avatar ph">{{avatarChar}}</view>
+    </view>
+    <view class="avatar-actions">
+      <text class="avatar-btn" bindtap="chooseAvatar">点击上传头像</text>
+      <text wx:if="{{avatarPrev}}" class="avatar-btn danger" bindtap="removeAvatar">移除</text>
+    </view>
+  </view>
+
+  <view class="field card">
+    <view class="label">用户名</view>
+    <view class="readonly">@{{username}}</view>
+  </view>
+  <view class="field card">
+    <view class="label">角色</view>
+    <view class="readonly">{{roleLabel}}</view>
+  </view>
+  <view class="field card">
+    <view class="label">昵称</view>
+    <input class="input" value="{{nickname}}" maxlength="32" bindinput="onNickname" placeholder="请输入昵称" />
+  </view>
+  <view class="field card">
+    <view class="label">自我介绍</view>
+    <textarea class="textarea" value="{{intro}}" maxlength="200" bindinput="onIntro"
+              placeholder="介绍一下自己吧（留空则清空）" />
+    <view class="counter">{{intro.length}}/200</view>
+  </view>
+
+  <button class="save-btn" loading="{{saving}}" bindtap="save">保存</button>
+</view>

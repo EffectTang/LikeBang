@@ -30,7 +30,7 @@
         <p class="detail-desc">{{ detail.description || '暂无描述' }}</p>
         <div class="detail-meta">
           <el-tag v-if="detail.categoryName" size="small" type="info">{{ detail.categoryName }}</el-tag>
-          <span>发起人 @{{ detail.creatorNickname || '匿名' }}</span>
+          <span class="creator-link" @click="goUser(detail.creatorId)">发起人 @{{ detail.creatorNickname || '匿名' }}</span>
           <span>🏆 Top {{ detail.itemLimit }}</span>
           <span>👁 {{ detail.viewCount }} 次浏览</span>
         </div>
@@ -284,6 +284,11 @@ const previewUrl = ref('')
 function previewImage(url) {
   previewUrl.value = url
   previewVisible.value = true
+}
+
+// 点击发起人进入他人主页；creatorId 缺失（历史数据）时不跳转
+function goUser(id) {
+  if (id) router.push(`/users/${id}`)
 }
 
 // ---- 榜单删除/编辑权限：同一套归属判定（本人或管理员），后端双重校验 ----
@@ -578,6 +583,10 @@ onMounted(() => {
   gap: 16px;
   font-size: 13px;
   flex-wrap: wrap;
+}
+.creator-link {
+  color: #409eff;
+  cursor: pointer;
 }
 .item-list {
   display: flex;
