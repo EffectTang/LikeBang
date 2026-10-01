@@ -8,4 +8,46 @@
         UPDATE ranking SET view_count = view_count + 1 WHERE id = #{id}
     </update>
 
+    <!--
+      我收到的票数：他人投到我创建的排名项 + 理由上的票。
+      口径：只算有效内容（item/reason status=1）、排除自投（v.user_id != creator_id）。
+      走 ranking_item.idx_creator_id / ranking_reason.idx_creator_id 关联后按投票明细计数。
+    -->
+    <select id="countReceivedVotes" resultType="java.lang.Long">
+        SELECT
+            (SELECT COUNT(*)
+               FROM ranking_item_vote v
+               JOIN ranking_item i ON v.item_id = i.id
+              WHERE i.creator_id = #{userId}
+                AND i.status = 1
+                AND v.user_id != i.creator_id)
+          + (SELECT COUNT(*)
+               FROM ranking_reason_vote v
+               JOIN ranking_reason r ON v.reason_id = r.id
+              WHERE r.creator_id = #{userId}
+                AND r.status = 1
+                AND v.user_id != r.creator_id)
+    </select>
+
+    <!-- 我参与投票的榜单数：按 ranking_id 去重（一期只统计排名项投票） -->
+    <select id="countVotedRankings" resultType="java.lang.Long">
+        SELECT COUNT(DISTINCT ranking_id)
+        FROM ranking_item_vote
+        WHERE user_id = #{userId}
+    </select>
+
+    <!--
+      我参与投票的榜单分页：子查询取我投过票的 ranking_id 去重，外层过滤已删除榜单、时间倒序。
+      由 MyBatis-Plus 分页插件对 IPage 参数自动补 LIMIT，避免把全部 id 载入内存。
+    -->
+    <select id="selectVotedRankingPage" resultType="com.likebang.modules.ranking.entity.Ranking">
+        SELECT r.*
+        FROM ranking r
+        WHERE r.status != 3
+          AND r.id IN (
+              SELECT DISTINCT ranking_id FROM ranking_item_vote WHERE user_id = #{userId}
+          )
+        ORDER BY r.created_at DESC
+    </select>
+
 </mapper>

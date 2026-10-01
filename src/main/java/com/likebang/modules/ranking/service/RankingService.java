@@ -11,6 +11,7 @@ import com.likebang.modules.ranking.dto.request.ReasonCreateRequest;
 import com.likebang.modules.ranking.dto.request.ReasonUpdateRequest;
 import com.likebang.modules.ranking.dto.response.RankingDetailResponse;
 import com.likebang.modules.ranking.dto.response.RankingResponse;
+import com.likebang.modules.ranking.dto.response.SpaceStatsResponse;
 
 import java.util.List;
 import java.util.Map;
@@ -39,6 +40,16 @@ public interface RankingService {
      * 分页浏览我创建的榜单（排除已删除，可按状态筛选），返回含状态供前端展示
      */
     IPage<RankingResponse> pageMine(PageParam pageParam, Integer status, LoginUser operator);
+
+    /**
+     * 分页浏览我参与投票的榜单（需登录，仅返回未删除榜单，按时间倒序）
+     */
+    IPage<RankingResponse> pageVotedByMe(PageParam pageParam, Long userId);
+
+    /**
+     * 「我的空间」数据概览：我发布榜单数 / 收到票数 / 参与投票榜单数（仅本人，userId 取登录态）
+     */
+    SpaceStatsResponse spaceStats(Long userId);
 
     /**
      * 编辑榜单元数据（仅创建者本人或管理员）；null 字段不修改

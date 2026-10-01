@@ -16,6 +16,7 @@ import com.likebang.modules.ranking.dto.request.VoteRequest;
 import com.likebang.modules.ranking.dto.response.CommentResponse;
 import com.likebang.modules.ranking.dto.response.RankingDetailResponse;
 import com.likebang.modules.ranking.dto.response.RankingResponse;
+import com.likebang.modules.ranking.dto.response.SpaceStatsResponse;
 import com.likebang.modules.ranking.dto.response.VoteResponse;
 import com.likebang.modules.ranking.service.RankingService;
 import com.likebang.modules.ranking.service.ReasonCommentService;
@@ -75,6 +76,22 @@ public class RankingController {
             @ModelAttribute PageParam pageParam,
             @RequestParam(required = false) Integer status) {
         return Result.success(rankingService.pageMine(pageParam, status, UserContext.getLoginUser()));
+    }
+
+    /**
+     * 我参与投票的榜单（分页，需登录，仅返回未删除榜单，供「我的空间-动态」用）
+     */
+    @GetMapping("/voted-by-me")
+    public Result<IPage<RankingResponse>> pageVotedByMe(@ModelAttribute PageParam pageParam) {
+        return Result.success(rankingService.pageVotedByMe(pageParam, UserContext.requireUserId()));
+    }
+
+    /**
+     * 「我的空间」数据概览（需登录，仅本人：我发布榜单数 / 收到票数 / 参与投票榜单数）
+     */
+    @GetMapping("/space-stats")
+    public Result<SpaceStatsResponse> spaceStats() {
+        return Result.success(rankingService.spaceStats(UserContext.requireUserId()));
     }
 
     /**

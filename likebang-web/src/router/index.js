@@ -22,6 +22,11 @@ const routes = [
     component: () => import('@/views/MyRankings.vue')
   },
   {
+    path: '/my-space',
+    name: 'MySpace',
+    component: () => import('@/views/MySpace.vue')
+  },
+  {
     path: '/users/:id',
     name: 'UserProfile',
     component: () => import('@/views/UserProfile.vue')

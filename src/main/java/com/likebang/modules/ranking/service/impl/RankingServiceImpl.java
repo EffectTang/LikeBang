@@ -20,6 +20,7 @@ import com.likebang.modules.ranking.dto.request.ReasonCreateRequest;
 import com.likebang.modules.ranking.dto.request.ReasonUpdateRequest;
 import com.likebang.modules.ranking.dto.response.RankingDetailResponse;
 import com.likebang.modules.ranking.dto.response.RankingResponse;
+import com.likebang.modules.ranking.dto.response.SpaceStatsResponse;
 import com.likebang.modules.ranking.entity.Ranking;
 import com.likebang.modules.ranking.entity.RankingCategory;
 import com.likebang.modules.ranking.entity.RankingItem;
@@ -229,8 +230,13 @@ public class RankingServiceImpl implements RankingService {
      */
     private IPage<RankingResponse> toResponsePage(PageParam pageParam, LambdaQueryWrapper<Ranking> wrapper) {
         // 统一经 PageParam.toPage() 构建：非法页码兜底 + size 上限钳制
-        Page<Ranking> page = rankingMapper.selectPage(pageParam.toPage(), wrapper);
+        return toResponse(rankingMapper.selectPage(pageParam.toPage(), wrapper));
+    }
 
+    /**
+     * 已取到的 Ranking 分页结果转响应页：批量补昵称与分类名（无 N+1）
+     */
+    private IPage<RankingResponse> toResponse(IPage<Ranking> page) {
         Map<Long, String> nicknames = nicknameMap(
                 page.getRecords().stream().map(Ranking::getCreatorId).collect(Collectors.toSet()));
         Map<Long, String> categoryNames = categoryNameMap(
@@ -247,6 +253,31 @@ public class RankingServiceImpl implements RankingService {
             return response;
         });
     }
+
+    @Override
+    public IPage<RankingResponse> pageVotedByMe(PageParam pageParam, Long userId) {
+        // 分页由 MyBatis-Plus 插件对 IPage 参数补 LIMIT，避免把全部 voted id 载入内存
+        return toResponse(rankingMapper.selectVotedRankingPage(pageParam.toPage(), userId));
+    }
+
+    @Override
+    public SpaceStatsResponse spaceStats(Long userId) {
+        SpaceStatsResponse stats = new SpaceStatsResponse();
+        // 我发布的榜单数：与 pageMine 同口径（排除已删除）
+        stats.setRankingCount(rankingMapper.selectCount(
+                new LambdaQueryWrapper<Ranking>()
+                        .eq(Ranking::getCreatorId, userId)
+                        .ne(Ranking::getStatus, STATUS_DELETED)));
+        stats.setReceivedVoteCount(nullSafe(rankingMapper.countReceivedVotes(userId)));
+        stats.setJoinedRankingCount(nullSafe(rankingMapper.countVotedRankings(userId)));
+        return stats;
+    }
+
+    /** COUNT 理论上不返 null，兜底防御空结果集 */
+    private long nullSafe(Long value) {
+        return value == null ? 0L : value;
+    }
+
 
     @Override
     @Transactional(rollbackFor = Exception.class)

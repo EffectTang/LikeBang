@@ -35,6 +35,16 @@ export function listMyRankings(params) {
   return request.get('/rankings/mine', { params })
 }
 
+// 我参与投票的榜单（分页，仅未删除，供「我的空间-动态」用）
+export function listVotedRankings(params) {
+  return request.get('/rankings/voted-by-me', { params })
+}
+
+// 我的空间数据概览（仅本人：我发布榜单数 / 收到票数 / 参与投票榜单数）
+export function getSpaceStats() {
+  return request.get('/rankings/space-stats')
+}
+
 // 某用户的公开榜单（他人主页，分页，仅已发布+公开）
 export function listUserRankings(userId, params) {
   return request.get(`/rankings/by-user/${userId}`, { params })
