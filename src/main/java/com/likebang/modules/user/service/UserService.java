@@ -2,6 +2,7 @@ package com.likebang.modules.user.service;
 
 import com.likebang.modules.user.dto.request.LoginRequest;
 import com.likebang.modules.user.dto.request.RegisterRequest;
+import com.likebang.modules.user.dto.request.WxLoginRequest;
 import com.likebang.modules.user.dto.response.LoginResponse;
 import com.likebang.modules.user.dto.response.UserInfoResponse;
 import com.likebang.modules.user.entity.SysUser;
@@ -20,6 +21,12 @@ public interface UserService {
      * 账号密码登录，签发 JWT
      */
     LoginResponse login(LoginRequest request);
+
+    /**
+     * 微信小程序登录：凭 wx.login 的 code 换取 openid，命中则登录、未命中则静默注册，
+     * 签发与账号密码一致的 JWT
+     */
+    LoginResponse wxLogin(WxLoginRequest request);
 
     /**
      * 根据ID查询用户，不存在抛业务异常

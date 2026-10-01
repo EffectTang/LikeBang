@@ -1,0 +1,43 @@
+<view class="page">
+  <!-- 搜索 + 发起 -->
+  <view class="search-bar">
+    <view class="search-box">
+      <input class="search-input" placeholder="搜索榜单标题 / 描述" value="{{keyword}}"
+             confirm-type="search" bindinput="onSearchInput" bindconfirm="onSearch" />
+    </view>
+    <view class="create-btn" bindtap="goCreate">＋ 发起</view>
+  </view>
+
+  <!-- 分类 -->
+  <scroll-view class="cat-bar" scroll-x="true" enable-flex="true">
+    <view class="cat {{activeCat === null ? 'active' : ''}}" data-id="" bindtap="selectCat">全部</view>
+    <view wx:for="{{categories}}" wx:key="id"
+          class="cat {{activeCat === item.id ? 'active' : ''}}"
+          data-id="{{item.id}}" bindtap="selectCat">{{item.name}}</view>
+  </scroll-view>
+
+  <!-- 列表 -->
+  <view class="list">
+    <view wx:for="{{list}}" wx:key="id" class="rank-card" data-id="{{item.id}}" bindtap="goDetail">
+      <image wx:if="{{item.cover}}" class="card-cover" src="{{item.cover}}" mode="aspectFill" />
+      <view wx:else class="card-cover cover-ph">🏆</view>
+      <view class="card-body">
+        <view class="card-title">{{item.title}}</view>
+        <view class="card-desc">{{item.description || '暂无描述'}}</view>
+        <view class="card-meta">
+          <text>🏆 Top {{item.itemLimit}}</text>
+          <text>📋 {{item.itemCount}} 项</text>
+          <text>👁 {{item.viewCount}}</text>
+        </view>
+        <view class="card-foot">
+          <text class="tag" wx:if="{{item.categoryName}}">{{item.categoryName}}</text>
+          <text class="creator">@{{item.creatorNickname}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading-tip">加载中…</view>
+  <view wx:elif="{{!hasMore && list.length > 0}}" class="loading-tip">没有更多了</view>
+  <view wx:if="{{!loading && list.length === 0}}" class="empty">还没有榜单，点右上角发起第一个吧</view>
+</view>

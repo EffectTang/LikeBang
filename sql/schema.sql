@@ -9,10 +9,11 @@ CREATE TABLE IF NOT EXISTS sys_user (
     id BIGINT NOT NULL COMMENT '用户ID，Snowflake生成',
 
     username VARCHAR(32) NOT NULL COMMENT '登录用户名',
+    openid VARCHAR(64) DEFAULT NULL COMMENT '微信小程序 openid，微信登录用户唯一标识；账号密码用户为 NULL',
     nickname VARCHAR(32) NOT NULL COMMENT '用户昵称',
     avatar_url VARCHAR(512) DEFAULT NULL COMMENT '头像地址',
 
-    email VARCHAR(128) NOT NULL COMMENT '邮箱，注册必填，全局唯一',
+    email VARCHAR(128) DEFAULT NULL COMMENT '邮箱，账号密码注册必填且全局唯一；微信登录用户可为空',
     phone VARCHAR(20) DEFAULT NULL COMMENT '手机号',
 
     password_hash VARCHAR(255) NOT NULL COMMENT '密码BCrypt哈希',
@@ -33,6 +34,7 @@ CREATE TABLE IF NOT EXISTS sys_user (
 
     UNIQUE KEY uk_username (username),
     UNIQUE KEY uk_email (email),
+    UNIQUE KEY uk_openid (openid),
 
     KEY idx_phone (phone),
     KEY idx_created_at (created_at),
@@ -384,6 +386,14 @@ INSERT IGNORE INTO ranking_category (id, name, description, sort, status, source
     (1003, '音乐', '歌曲、专辑、歌手等榜单',       3, 1, 1);
 
 UPDATE ranking_category SET source_enabled = 1 WHERE id IN (1001, 1002, 1003) AND source_enabled = 0;
+
+-- 19 迁移：微信小程序登录 —— 为已存在的旧 sys_user 表补 openid 列并放开邮箱非空约束
+-- （新库由上方 CREATE 已含 openid 且 email 可空；以下均为一次性迁移，重复执行报“重复列/重复键”错误可忽略）
+-- MySQL 唯一键允许多个 NULL：账号密码用户 openid 为空、微信用户 email 为空，均不受 uk 约束影响
+ALTER TABLE sys_user
+    ADD COLUMN openid VARCHAR(64) DEFAULT NULL COMMENT '微信小程序 openid，微信登录用户唯一标识；账号密码用户为 NULL' AFTER username;
+ALTER TABLE sys_user ADD UNIQUE KEY uk_openid (openid);
+ALTER TABLE sys_user MODIFY COLUMN email VARCHAR(128) DEFAULT NULL COMMENT '邮箱，账号密码注册必填且全局唯一；微信登录用户可为空';
 
 
   

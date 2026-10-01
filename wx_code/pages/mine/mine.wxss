@@ -1,0 +1,106 @@
+.mine-page {
+  padding: 24rpx;
+}
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+.avatar {
+  width: 96rpx;
+  height: 96rpx;
+  line-height: 96rpx;
+  text-align: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #409eff, #66b1ff);
+  color: #fff;
+  font-size: 40rpx;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.avatar.ph {
+  background: #f0f2f5;
+}
+.p-name {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+.p-sub {
+  color: #909399;
+  font-size: 24rpx;
+  margin-top: 6rpx;
+}
+.logout {
+  color: #f56c6c;
+  font-size: 26rpx;
+}
+.p-login {
+  margin-left: auto;
+}
+
+.create-entry {
+  margin: 24rpx 0;
+  height: 88rpx;
+  line-height: 88rpx;
+}
+
+.sec-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  margin: 8rpx 4rpx 16rpx;
+}
+
+.my-card {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+.my-cover {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 12rpx;
+  flex-shrink: 0;
+}
+.my-cover.ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #409eff, #66b1ff);
+  font-size: 52rpx;
+}
+.my-body {
+  min-width: 0;
+}
+.my-title {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.my-title .ellipsis {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+.status {
+  font-size: 20rpx;
+  padding: 2rpx 12rpx;
+  border-radius: 16rpx;
+  flex-shrink: 0;
+}
+.status.s1 { background: #e8f6ed; color: #67c23a; }
+.status.s0 { background: #f0f2f5; color: #909399; }
+.status.s2 { background: #fef0f0; color: #f56c6c; }
+.my-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  color: #909399;
+  font-size: 22rpx;
+  margin-top: 10rpx;
+}
+.my-del {
+  color: #f56c6c;
+  font-size: 24rpx;
+  padding: 10rpx;
+  flex-shrink: 0;
+}

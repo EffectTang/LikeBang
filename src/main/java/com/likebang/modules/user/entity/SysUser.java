@@ -28,6 +28,11 @@ public class SysUser implements Serializable {
     private String username;
 
     /**
+     * 微信小程序 openid：微信登录用户的唯一身份标识；账号密码用户为 null
+     */
+    private String openid;
+
+    /**
      * 用户昵称
      */
     private String nickname;

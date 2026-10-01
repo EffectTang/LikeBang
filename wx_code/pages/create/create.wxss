@@ -1,0 +1,125 @@
+.create-page {
+  padding: 24rpx;
+  padding-bottom: 60rpx;
+}
+.sec-header {
+  font-size: 30rpx;
+  font-weight: 600;
+  margin-bottom: 20rpx;
+}
+.field {
+  margin-bottom: 24rpx;
+}
+.field.row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.flabel {
+  font-size: 26rpx;
+  color: #606266;
+  margin-bottom: 12rpx;
+  display: block;
+}
+.field.row .flabel {
+  width: 140rpx;
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+.req {
+  color: #f56c6c;
+  margin-left: 6rpx;
+}
+.finput {
+  background: #f5f7fa;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 28rpx;
+}
+.field.row .finput {
+  flex: 1;
+}
+.finput.num {
+  max-width: 160rpx;
+}
+.finput.picker.sm {
+  max-width: none;
+  flex: 1;
+}
+.ftextarea {
+  background: #f5f7fa;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 28rpx;
+  width: 100%;
+  box-sizing: border-box;
+  height: 120rpx;
+  margin-bottom: 16rpx;
+}
+.hint {
+  background: #ecf5ff;
+  color: #409eff;
+  font-size: 24rpx;
+  border-radius: 12rpx;
+  padding: 14rpx 20rpx;
+  margin-top: 8rpx;
+}
+
+/* 排名项块 */
+.item-block {
+  border: 1rpx solid #ebeef5;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  margin-bottom: 20rpx;
+}
+.item-block .finput,
+.item-block .ftextarea {
+  margin-bottom: 16rpx;
+  width: 100%;
+  box-sizing: border-box;
+}
+.item-block-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+.ib-idx {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #409eff;
+}
+.ib-del {
+  font-size: 24rpx;
+  color: #f56c6c;
+}
+.src-row {
+  margin-bottom: 16rpx;
+}
+.img-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.img-pick {
+  color: #409eff;
+  font-size: 24rpx;
+  border: 1rpx dashed #409eff;
+  border-radius: 20rpx;
+  padding: 8rpx 22rpx;
+}
+.prev-thumb {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 8rpx;
+}
+.add-item-btn {
+  width: 100%;
+  margin-top: 8rpx;
+}
+
+.submit {
+  margin-top: 32rpx;
+  height: 88rpx;
+  line-height: 88rpx;
+}

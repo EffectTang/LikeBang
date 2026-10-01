@@ -19,7 +19,9 @@ public enum ResultCode {
     USER_ALREADY_EXISTS(1002, "用户已存在"),
     USER_PASSWORD_ERROR(1003, "密码错误"),
     USER_DISABLED(1004, "账号已被禁用"),
-    TOKEN_INVALID(1005, "登录状态无效，请重新登录");
+    TOKEN_INVALID(1005, "登录状态无效，请重新登录"),
+    WX_CONFIG_MISSING(1006, "微信登录未配置，请联系管理员"),
+    WX_LOGIN_FAILED(1007, "微信登录失败，请重试");
 
     private final Integer code;
     private final String message;

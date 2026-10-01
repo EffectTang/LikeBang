@@ -4,6 +4,7 @@ import com.likebang.common.result.Result;
 import com.likebang.common.utils.UserContext;
 import com.likebang.modules.user.dto.request.LoginRequest;
 import com.likebang.modules.user.dto.request.RegisterRequest;
+import com.likebang.modules.user.dto.request.WxLoginRequest;
 import com.likebang.modules.user.dto.response.LoginResponse;
 import com.likebang.modules.user.dto.response.UserInfoResponse;
 import com.likebang.modules.user.service.UserService;
@@ -39,6 +40,14 @@ public class AuthController {
     @PostMapping("/login")
     public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return Result.success(userService.login(request));
+    }
+
+    /**
+     * 微信小程序登录（成功后返回与账号密码一致的登录态）
+     */
+    @PostMapping("/wx-login")
+    public Result<LoginResponse> wxLogin(@Valid @RequestBody WxLoginRequest request) {
+        return Result.success(userService.wxLogin(request));
     }
 
     /**

@@ -28,6 +28,12 @@ likebang:
     jwt-timeout: ${JWT_TIMEOUT:604800000}
     # 内置超级管理员账号，不可被禁用/删除/改角色（与 schema.sql 播种账号保持一致）
     super-admin-username: ${SUPER_ADMIN_USERNAME:admin}
+    # 微信小程序登录凭据：需自行申请，未配置时调用 /user/auth/wx-login 返回"微信登录未配置"
+    wx:
+      # AppID：登录微信公众平台 https://mp.weixin.qq.com -> 开发 -> 开发管理 -> 开发设置 -> 小程序ID
+      app-id: ${WX_APP_ID:}
+      # AppSecret：同页面"小程序密钥"处生成，属敏感信息，切勿提交仓库，生产通过环境变量 WX_APP_SECRET 注入
+      app-secret: ${WX_APP_SECRET:}
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml

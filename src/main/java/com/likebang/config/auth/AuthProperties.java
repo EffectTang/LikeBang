@@ -30,4 +30,23 @@ public class AuthProperties {
      * 该账号不可被任何人禁用/删除/变更角色，防止权限体系被锁死或夺舍
      */
     private String superAdminUsername = "admin";
+
+    /**
+     * 微信小程序登录配置（AppID/AppSecret 需自行申请，未配置时微信登录不可用）
+     */
+    private Wx wx = new Wx();
+
+    @Data
+    public static class Wx {
+
+        /**
+         * 小程序 AppID：微信公众平台 -> 开发 -> 开发管理 -> 开发设置 获取
+         */
+        private String appId;
+
+        /**
+         * 小程序 AppSecret：与 AppID 同页获取，属敏感信息，禁止硬编码/入库，生产经环境变量注入
+         */
+        private String appSecret;
+    }
 }

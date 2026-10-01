@@ -1,0 +1,157 @@
+<view class="detail-page" wx:if="{{detail}}">
+  <!-- 头部 -->
+  <view class="hero">
+    <image wx:if="{{coverFull}}" class="hero-cover" src="{{coverFull}}" mode="aspectFill"
+           data-url="{{coverFull}}" bindtap="preview" />
+    <view class="hero-title">{{detail.title}}</view>
+    <view class="hero-desc" wx:if="{{detail.description}}">{{detail.description}}</view>
+    <view class="hero-meta">
+      <text class="tag" wx:if="{{detail.categoryName}}">{{detail.categoryName}}</text>
+      <text>@{{detail.creatorNickname || '匿名'}}</text>
+      <text>🏆 Top {{detail.itemLimit}}</text>
+      <text>👥 {{detail.participantCount}}</text>
+      <text>👁 {{detail.viewCount}}</text>
+    </view>
+  </view>
+
+  <!-- 管理操作栏（本人/管理员） -->
+  <view class="manage-bar" wx:if="{{canManage}}">
+    <button class="mbtn" size="mini" bindtap="openRankEdit">编辑榜单</button>
+    <button class="mbtn" size="mini" bindtap="openItemAdd">新增排名项</button>
+    <button class="mbtn danger" size="mini" bindtap="deleteRanking">删除榜单</button>
+  </view>
+
+  <!-- 排名项列表 -->
+  <view wx:for="{{items}}" wx:key="id" class="item-card">
+    <view class="item-head">
+      <view class="rank-badge">{{item.currentRank}}</view>
+      <image wx:if="{{item.thumb}}" class="item-thumb" src="{{item.thumb}}" mode="aspectFill"
+             data-url="{{item.thumb}}" bindtap="preview" />
+      <view class="item-info flex-1">
+        <view class="item-name">{{item.name}}</view>
+        <view class="item-source" wx:if="{{item.sourceName}}">——《{{item.sourceName}}》</view>
+        <view class="item-desc" wx:if="{{item.description}}">{{item.description}}</view>
+      </view>
+    </view>
+
+    <view class="item-ops">
+      <view class="vote-group">
+        <button class="vote {{item.myVoteType === 1 ? 'on-agree' : ''}}" size="mini"
+                data-idx="{{index}}" data-type="1" bindtap="voteItem">👍 {{item.agreeCount}}</button>
+        <button class="vote {{item.myVoteType === -1 ? 'on-oppose' : ''}}" size="mini"
+                data-idx="{{index}}" data-type="-1" bindtap="voteItem">👎 {{item.opposeCount}}</button>
+      </view>
+      <view class="item-right">
+        <text class="link" data-idx="{{index}}" bindtap="goItem">查看全部 {{item.reasonCount}} 条理由 ›</text>
+        <block wx:if="{{canManage}}">
+          <text class="op-link" data-idx="{{index}}" bindtap="openItemEdit">编辑</text>
+          <text class="op-link danger" data-idx="{{index}}" bindtap="deleteItem">删除</text>
+        </block>
+      </view>
+    </view>
+
+    <!-- 理由（Top N） -->
+    <view class="reasons" wx:if="{{item.reasons.length}}">
+      <view wx:for="{{item.reasons}}" wx:for-item="r" wx:for-index="ridx" wx:key="id" class="reason">
+        <view class="reason-floor">{{ridx + 1}}</view>
+        <view class="reason-main flex-1">
+          <view class="reason-content">{{r.content}}</view>
+          <image wx:if="{{r.image}}" class="reason-image" src="{{r.image}}" mode="aspectFill"
+                 data-url="{{r.image}}" bindtap="preview" />
+          <view class="reason-foot">
+            <text class="muted">@{{r.creatorNickname}} · {{r.createdAt}}</text>
+            <text class="muted" data-idx="{{index}}" bindtap="goItem">💬 {{r.commentCount}}</text>
+          </view>
+        </view>
+        <view class="reason-side">
+          <view class="rv {{r.myVoteType === 1 ? 'on-agree' : ''}}" data-idx="{{index}}" data-ridx="{{ridx}}" data-type="1" bindtap="voteReason">👍{{r.agreeCount}}</view>
+          <view class="rv {{r.myVoteType === -1 ? 'on-oppose' : ''}}" data-idx="{{index}}" data-ridx="{{ridx}}" data-type="-1" bindtap="voteReason">👎{{r.opposeCount}}</view>
+          <view class="rv danger" wx:if="{{r.canEdit}}" data-idx="{{index}}" data-ridx="{{ridx}}" bindtap="deleteReason">删</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 新增理由 -->
+    <view class="add-reason">
+      <textarea class="reason-input" placeholder="说说你的理由…" maxlength="1000"
+                value="{{item.reasonDraft}}" data-idx="{{index}}" bindinput="onReasonInput" />
+      <view class="reason-tools">
+        <view class="img-pick" data-idx="{{index}}" bindtap="pickReasonImage">📷 配图</view>
+        <view class="img-prev" wx:if="{{item.reasonImagePrev}}">
+          <image class="prev-thumb" src="{{item.reasonImagePrev}}" mode="aspectFill" />
+          <text class="prev-del" data-idx="{{index}}" bindtap="clearReasonImage">×</text>
+        </view>
+        <button class="btn-primary submit-reason" size="mini" loading="{{item.submitting}}"
+                data-idx="{{index}}" bindtap="submitReason">提交理由</button>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{!items.length}}" class="empty">该榜单暂无排名项</view>
+</view>
+
+<view wx:elif="{{loading}}" class="loading-tip">加载中…</view>
+
+<!-- 编辑榜单弹层 -->
+<view class="mask" wx:if="{{panel === 'rank'}}" bindtap="closePanel"></view>
+<view class="sheet" wx:if="{{panel === 'rank'}}">
+  <view class="sheet-title">编辑榜单</view>
+  <view class="field">
+    <text class="flabel">标题</text>
+    <input class="finput" value="{{rankForm.title}}" data-key="title" bindinput="onRankField" maxlength="100" />
+  </view>
+  <view class="field">
+    <text class="flabel">描述</text>
+    <textarea class="ftextarea" value="{{rankForm.description}}" data-key="description" bindinput="onRankField" maxlength="1000" />
+  </view>
+  <view class="field row">
+    <text class="flabel">名次上限</text>
+    <input class="finput num" type="number" value="{{rankForm.itemLimit}}" bindinput="onRankNumber" />
+  </view>
+  <view class="field row">
+    <text class="flabel">可见性</text>
+    <picker range="{{visLabels}}" value="{{rankVisIndex}}" bindchange="onVisChange">
+      <view class="finput picker">{{visLabels[rankVisIndex]}}</view>
+    </picker>
+  </view>
+  <view class="field row cover-row">
+    <text class="flabel">封面</text>
+    <view class="img-pick" bindtap="pickRankCover">选择封面</view>
+    <image wx:if="{{rankForm.coverPrev}}" class="prev-thumb" src="{{rankForm.coverPrev}}" mode="aspectFill" />
+  </view>
+  <view class="sheet-actions">
+    <button class="btn-plain" bindtap="closePanel">取消</button>
+    <button class="btn-primary flex-1" loading="{{saving}}" bindtap="saveRankEdit">保存</button>
+  </view>
+</view>
+
+<!-- 新增/编辑排名项弹层 -->
+<view class="mask" wx:if="{{panel === 'item'}}" bindtap="closePanel"></view>
+<view class="sheet" wx:if="{{panel === 'item'}}">
+  <view class="sheet-title">{{itemForm.mode === 'add' ? '新增排名项' : '编辑排名项'}}</view>
+  <view class="field">
+    <text class="flabel">名称</text>
+    <input class="finput" value="{{itemForm.name}}" data-key="name" bindinput="onItemField" maxlength="200" placeholder="必填" />
+  </view>
+  <view class="field">
+    <text class="flabel">描述</text>
+    <textarea class="ftextarea" value="{{itemForm.description}}" data-key="description" bindinput="onItemField" maxlength="1000" />
+  </view>
+  <view class="field row cover-row">
+    <text class="flabel">配图</text>
+    <view class="img-pick" bindtap="pickItemImage">选择图片</view>
+    <image wx:if="{{itemForm.imagePrev}}" class="prev-thumb" src="{{itemForm.imagePrev}}" mode="aspectFill" />
+  </view>
+  <view class="field">
+    <text class="flabel muted">来源编辑（类型/作品/说明）请在网页端完成</text>
+  </view>
+  <view class="sheet-actions">
+    <button class="btn-plain" bindtap="closePanel">取消</button>
+    <button class="btn-primary flex-1" loading="{{saving}}" bindtap="saveItem">保存</button>
+  </view>
+</view>
+
+<!-- 图片预览 -->
+<view class="preview" wx:if="{{previewUrl}}" bindtap="closePreview">
+  <image src="{{previewUrl}}" mode="widthFix" />
+</view>

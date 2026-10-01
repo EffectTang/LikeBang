@@ -46,6 +46,7 @@ public class WebConfig implements WebMvcConfigurer {
                 .excludePathPatterns(
                         "/user/auth/login",
                         "/user/auth/register",
+                        "/user/auth/wx-login",
                         // 上传图片走 <img> 标签访问，浏览器不会携带 Authorization 头，整体放行（仅只读静态资源）
                         "/uploads/**",
                         "/error");
