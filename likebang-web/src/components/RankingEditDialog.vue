@@ -41,18 +41,24 @@
       </el-form-item>
 
       <el-form-item label="封面图">
-        <el-upload
-          :file-list="coverFileList"
-          :limit="1"
-          list-type="picture-card"
-          accept="image/jpeg,image/png,image/gif,image/webp"
-          :before-upload="beforeImageUpload"
-          :http-request="doUpload"
-          :on-remove="removeCover"
-          :on-preview="handlePreview"
-        >
-          <el-icon><Plus /></el-icon>
-        </el-upload>
+        <div class="cover-upload">
+          <el-upload
+            :file-list="coverDisplayList"
+            :limit="coverLimit"
+            list-type="picture-card"
+            accept="image/jpeg,image/png,image/gif,image/webp"
+            :before-upload="beforeImageUpload"
+            :http-request="doUpload"
+            :on-remove="removeCover"
+            :on-preview="handlePreview"
+          >
+            <el-icon><Plus /></el-icon>
+          </el-upload>
+          <div class="cover-hint">
+            <span>最多 {{ coverLimit }} 张，当前 {{ form.coverUrls.length }}/{{ coverLimit }}；保存时按当前列表整组替换</span>
+            <span class="tip">详情页将按此处顺序轮播展示</span>
+          </div>
+        </div>
         <el-dialog v-model="previewVisible" width="600px" append-to-body :show-close="true">
           <img :src="previewUrl" style="width: 100%" alt="预览" />
         </el-dialog>
@@ -83,7 +89,7 @@
 import { ref, reactive, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { updateRanking, listCategories } from '@/api/ranking'
+import { updateRanking, listCategories, getCoverLimit } from '@/api/ranking'
 import { uploadImage } from '@/api/file'
 import { resolveImage } from '@/utils/image'
 
@@ -93,7 +99,9 @@ const visible = ref(false)
 const submitting = ref(false)
 const formRef = ref()
 const categories = ref([])
-const coverFileList = ref([])
+// 封面最大数量：优先用详情接口下发的 coverLimit，缺失时走 /rankings/cover-limit 拉取；
+// 均失败则兜底为 1，保证至少可保留/上传 1 张
+const coverLimit = ref(1)
 const previewVisible = ref(false)
 const previewUrl = ref('')
 
@@ -101,12 +109,18 @@ const form = reactive({
   id: null,
   title: '',
   description: '',
-  coverUrl: '',
+  // 封面相对路径列表（/uploads/xxx），数组顺序即详情页轮播顺序；提交时整组替换
+  coverUrls: [],
   categoryId: null,
   itemLimit: 10,
   visibility: 1,
   itemCount: 0
 })
+
+// el-upload picture-card 展示列表：由 form.coverUrls 派生（事实源只有相对路径数组一份）
+const coverDisplayList = computed(() =>
+  form.coverUrls.map((u, i) => ({ name: `封面${i + 1}`, url: resolveImage(u) }))
+)
 
 const rules = {
   title: [
@@ -123,13 +137,27 @@ async function open(ranking) {
   form.id = ranking.id
   form.title = ranking.title || ''
   form.description = ranking.description || ''
-  form.coverUrl = ranking.coverUrl || ''
-  coverFileList.value = form.coverUrl ? [{ name: '封面', url: resolveImage(form.coverUrl) }] : []
+  // 后端已含历史数据回落（无多图记录时 coverUrls 为单元素），再兜一层防旧接口缓存
+  form.coverUrls = ranking.coverUrls?.length
+    ? [...ranking.coverUrls]
+    : (ranking.coverUrl ? [ranking.coverUrl] : [])
   form.categoryId = ranking.categoryId ?? null
   form.itemLimit = ranking.itemLimit ?? 10
   form.visibility = ranking.visibility ?? 1
   form.itemCount = ranking.itemCount ?? 0
   visible.value = true
+
+  // 封面上限：详情接口已下发则直接用，否则拉配置接口（接口失败不阻断编辑）
+  if (Number(ranking.coverLimit) > 0) {
+    coverLimit.value = Number(ranking.coverLimit)
+  } else {
+    try {
+      const res = await getCoverLimit()
+      coverLimit.value = Number(res.data) || 1
+    } catch (e) {
+      coverLimit.value = 1
+    }
+  }
 
   // 分类列表懒加载一次，失败不阻塞编辑
   if (categories.value.length === 0) {
@@ -145,7 +173,7 @@ async function open(ranking) {
 function onClosed() {
   formRef.value?.resetFields()
   form.id = null
-  coverFileList.value = []
+  form.coverUrls = []
 }
 
 // 上传前置校验：格式 + 大小（与后端白名单/限流口径一致）
@@ -169,30 +197,42 @@ function handlePreview(file) {
 async function doUpload(req) {
   try {
     const res = await uploadImage(req.file)
-    form.coverUrl = res.data
-    coverFileList.value = [{ name: req.file.name, url: resolveImage(res.data) }]
+    const url = res.data
+    if (form.coverUrls.length >= coverLimit.value) {
+      ElMessage.warning(`封面图最多上传 ${coverLimit.value} 张`)
+      return
+    }
+    form.coverUrls.push(url)
+    if (form.coverUrls.length === coverLimit.value) {
+      ElMessage.success(`已达封面数量上限（${coverLimit.value} 张）`)
+    }
   } catch (e) {
-    // 失败回退到原封面（request 拦截器已弹错）
-    coverFileList.value = form.coverUrl ? [{ name: '封面', url: resolveImage(form.coverUrl) }] : []
+    // 失败：不写入列表即可重试（request 拦截器已弹错）
   }
 }
 
-function removeCover() {
-  // 置空串，提交时后端按“清空封面”处理
-  form.coverUrl = ''
-  coverFileList.value = []
+// 移除封面：按展示列表位置从事实源数组中剔除同下标路径
+function removeCover(file) {
+  const idx = coverDisplayList.value.findIndex(f => f.url === file.url)
+  if (idx >= 0) form.coverUrls.splice(idx, 1)
 }
 
 async function submit() {
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
 
+  // 封面至少保留 1 张（上限由后台系统设置驱动，下限固定为 1）；后端按同口径兜底校验
+  if (form.coverUrls.length === 0) {
+    ElMessage.warning('请至少保留 1 张封面图')
+    return
+  }
+
   submitting.value = true
   try {
     await updateRanking(form.id, {
       title: form.title,
       description: form.description ?? '',
-      coverUrl: form.coverUrl,
+      coverUrls: [...form.coverUrls],
       categoryId: form.categoryId,
       itemLimit: form.itemLimit,
       visibility: form.visibility
@@ -211,6 +251,17 @@ defineExpose({ open })
 <style scoped>
 .edit-tip {
   margin-bottom: 16px;
+}
+.cover-upload {
+  width: 100%;
+}
+.cover-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  color: #909399;
+  font-size: 12px;
 }
 .tip {
   margin-left: 12px;

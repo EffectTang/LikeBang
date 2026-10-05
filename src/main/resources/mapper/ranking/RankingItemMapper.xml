@@ -39,4 +39,39 @@
         LIMIT #{limit}
     </select>
 
+    <!--
+      跨榜单排名项内容搜索：JOIN ranking 保证只命中「已发布+公开」榜单下的有效项（status=1），
+      LEFT JOIN sys_user 只取未删除账号的昵称；命中维度 = 项名称 / 项描述 / 来源作品名。
+      列别名直接对齐 DTO 驼峰字段，避免依赖全局 underscore 映射。
+      由 MyBatis-Plus 分页插件对 IPage 参数自动补 LIMIT。
+    -->
+    <select id="selectItemSearchPage" resultType="com.likebang.modules.ranking.dto.response.ItemSearchResponse">
+        SELECT i.id            AS itemId,
+               i.name          AS name,
+               i.description   AS description,
+               i.image_url     AS imageUrl,
+               i.source_name   AS sourceName,
+               i.creator_id    AS creatorId,
+               r.id            AS rankingId,
+               r.title         AS rankingTitle,
+               r.cover_url     AS coverUrl,
+               u.nickname      AS creatorNickname
+        FROM ranking_item i
+        JOIN ranking r ON r.id = i.ranking_id
+        LEFT JOIN sys_user u ON u.id = i.creator_id AND u.deleted = 0
+        WHERE i.status = 1
+          AND r.status = 1
+          AND r.visibility = 1
+        <if test="keyword != null and keyword != ''">
+            AND (i.name LIKE CONCAT('%', #{keyword}, '%')
+                OR i.description LIKE CONCAT('%', #{keyword}, '%')
+                OR i.source_name LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <!-- Phase2 二级过滤：按来源作品名 AND 精筛 -->
+        <if test="sourceName != null and sourceName != ''">
+            AND i.source_name LIKE CONCAT('%', #{sourceName}, '%')
+        </if>
+        ORDER BY i.id DESC
+    </select>
+
 </mapper>

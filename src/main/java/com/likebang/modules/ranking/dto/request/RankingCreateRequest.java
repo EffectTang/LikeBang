@@ -25,10 +25,18 @@ public class RankingCreateRequest {
     private String description;
 
     /**
-     * 封面图地址（前端先走 /files/image 上传拿到相对路径，可选）
+     * 封面图地址（前端先走 /files/image 上传拿到相对路径，可选）；
+     * 历史单图字段，与 coverUrls 二选一，同传时以 coverUrls 为准
      */
     @Size(max = 512, message = "封面地址长度不能超过512")
     private String coverUrl;
+
+    /**
+     * 封面图地址列表（可选，按数组顺序即详情页轮播顺序）；
+     * 数量上限由系统配置 ranking.detail.cover_limit 在 Service 层校验，至少 1 张
+     */
+    @Size(max = 10, message = "封面图数量不能超过10张")
+    private List<String> coverUrls;
 
     /**
      * 分类ID，可不选

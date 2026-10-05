@@ -401,5 +401,53 @@ ALTER TABLE sys_user MODIFY COLUMN email VARCHAR(128) DEFAULT NULL COMMENT '邮�
 ALTER TABLE sys_user
     ADD COLUMN intro VARCHAR(500) DEFAULT NULL COMMENT '自我介绍（用户可自助填写/清空）' AFTER avatar_url;
 
+-- 21 榜单封面多图表 ranking_cover
+-- 延续“专表 + 冗余”原则：不在 ranking.cover_url 单列上塞 JSON 多图列表。
+-- cover_url 仍保留且恒等于第 1 张封面（列表卡片单图视角不变），本表存全量供详情页轮播。
+-- 封面是榜单私有轻量媒体引用（无计数/投票依赖），编辑即整组删旧插新（硬删），不做软删
+CREATE TABLE IF NOT EXISTS ranking_cover (
+    id BIGINT NOT NULL COMMENT '封面ID，Snowflake生成',
+
+    ranking_id BIGINT NOT NULL COMMENT '排名ID',
+    image_url VARCHAR(512) NOT NULL COMMENT '封面图地址（/uploads/ 相对路径）',
+    sort INT NOT NULL DEFAULT 0 COMMENT '展示顺序，越小越靠前；第 1 张同步写回 ranking.cover_url',
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+
+    PRIMARY KEY (id),
+
+    KEY idx_ranking_sort (ranking_id, sort)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='榜单封面多图表';
+
+-- 21.1 播种：榜单封面最大数量上限（幂等：依赖 uk_config_key，重复执行自动跳过）
+-- 后台“系统设置”仅设置“最多几张”；用户至少可上传 1 张，下限固定为 1 不可配
+-- 业务侧读取 RankingServiceImpl：sysConfigService.getInt("ranking.detail.cover_limit", 3)
+INSERT IGNORE INTO sys_config
+    (id, config_key, config_value, config_name, config_group, value_type,
+     description, editable, min_value, max_value, sort_order)
+VALUES
+    (2002, 'ranking.detail.cover_limit', '3', '榜单封面最大数量', 'ranking', 'int',
+     '一个榜单最多允许上传的封面图数量（详情页轮播展示；下限固定为 1，取值范围 1~10）', 1, '1', '10', 20);
+
+-- 22 多维搜索：排名项名称搜索索引
+-- 一期 MySQL LIKE（前导通配符无法命中 B+Tree，索引主要用于候选集收窄/排序，数据量上来后升级全文索引/ES）；
+-- sys_user 昵称搜索走全扫（用户量小，且 LIKE '%kw%' 用不上 B+Tree），故默认不建昵称索引
+-- 均为一次性迁移，重复执行报“重复键”错误可忽略
+ALTER TABLE ranking_item ADD KEY idx_name (name);
+
+-- 22.1 播种：全站搜索“全部”聚合区每维展示条数（幂等：依赖 uk_config_key，重复执行自动跳过）
+-- 后台“系统设置”可调；业务侧读取 SearchServiceImpl.aggregate()：sysConfigService.getInt("search.aggregate.size", 5)
+INSERT IGNORE INTO sys_config
+    (id, config_key, config_value, config_name, config_group, value_type,
+     description, editable, min_value, max_value, sort_order)
+VALUES
+    (2003, 'search.aggregate.size', '5', '搜索聚合区每维条数', 'search', 'int',
+     '全站搜索“全部”模式下，榜单/用户/排名项每一维最多展示的条数（取值范围 1~20）', 1, '1', '20', 30);
+
 
   

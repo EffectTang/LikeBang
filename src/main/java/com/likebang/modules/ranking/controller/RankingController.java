@@ -14,6 +14,7 @@ import com.likebang.modules.ranking.dto.request.ReasonCreateRequest;
 import com.likebang.modules.ranking.dto.request.ReasonUpdateRequest;
 import com.likebang.modules.ranking.dto.request.VoteRequest;
 import com.likebang.modules.ranking.dto.response.CommentResponse;
+import com.likebang.modules.ranking.dto.response.ItemSearchResponse;
 import com.likebang.modules.ranking.dto.response.RankingDetailResponse;
 import com.likebang.modules.ranking.dto.response.RankingResponse;
 import com.likebang.modules.ranking.dto.response.SpaceStatsResponse;
@@ -49,13 +50,14 @@ public class RankingController {
     }
 
     /**
-     * 分页浏览公开榜单
+     * 分页浏览公开榜单，creatorNickname 为可选二级过滤（Phase2 交叉搜索）
      */
     @GetMapping("/public")
     public Result<IPage<RankingResponse>> pagePublic(
             @ModelAttribute PageParam pageParam,
-            @RequestParam(required = false) Long categoryId) {
-        return Result.success(rankingService.pagePublic(pageParam, categoryId));
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String creatorNickname) {
+        return Result.success(rankingService.pagePublic(pageParam, categoryId, creatorNickname));
     }
 
     /**
@@ -113,11 +115,32 @@ public class RankingController {
     }
 
     /**
+     * 榜单封面最大数量上限（需登录，上传表单单一事实源；
+     * 管理员在系统设置中改 ranking.detail.cover_limit 后即时生效）
+     */
+    @GetMapping("/cover-limit")
+    public Result<Integer> coverLimit() {
+        return Result.success(rankingService.coverLimit());
+    }
+
+    /**
      * 站内历史来源作品名去重列表（需登录，创建表单自动补全，keyword 可选）
      */
     @GetMapping("/source-names")
     public Result<List<String>> sourceNames(@RequestParam(required = false) String keyword) {
         return Result.success(rankingService.sourceNames(keyword));
+    }
+
+    /**
+     * 跟榜单排名项内容分页搜索（需登录）：命中项名称/描述/来源作品名，仅返回公开已发布榜单下的有效项。
+     * sourceName 为可选二级过滤（Phase2 交叉搜索）。
+     * 字面量路径 /items/search 优先于 /{id} 匹配，与 /cover-limit、/source-names 同范式。
+     */
+    @GetMapping("/items/search")
+    public Result<IPage<ItemSearchResponse>> searchItems(
+            @ModelAttribute PageParam pageParam,
+            @RequestParam(required = false) String sourceName) {
+        return Result.success(rankingService.pageItemsByKeyword(pageParam, sourceName));
     }
 
     /**

@@ -20,6 +20,16 @@ public class RankingDetailResponse {
 
     private String coverUrl;
 
+    /**
+     * 封面图全集（按 sort 升序，详情页轮播展示）；无多图记录时回落为 coverUrl 单元素
+     */
+    private List<String> coverUrls;
+
+    /**
+     * 封面最大数量上限（系统配置 ranking.detail.cover_limit，供编辑弹窗限制上传组件）
+     */
+    private Integer coverLimit;
+
     private Long categoryId;
 
     private String categoryName;

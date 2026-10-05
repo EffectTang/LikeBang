@@ -10,6 +10,7 @@ import com.likebang.modules.ranking.dto.request.RankingUpdateRequest;
 import com.likebang.modules.ranking.dto.request.ReasonCreateRequest;
 import com.likebang.modules.ranking.dto.request.ReasonUpdateRequest;
 import com.likebang.modules.ranking.dto.response.RankingDetailResponse;
+import com.likebang.modules.ranking.dto.response.ItemSearchResponse;
 import com.likebang.modules.ranking.dto.response.RankingResponse;
 import com.likebang.modules.ranking.dto.response.SpaceStatsResponse;
 
@@ -27,9 +28,9 @@ public interface RankingService {
     Long create(RankingCreateRequest request, Long creatorId);
 
     /**
-     * 分页浏览公开榜单
+     * 分页浏览公开榜单，creatorNickname 为可选二级过滤（Phase2）
      */
-    IPage<RankingResponse> pagePublic(PageParam pageParam, Long categoryId);
+    IPage<RankingResponse> pagePublic(PageParam pageParam, Long categoryId, String creatorNickname);
 
     /**
      * 分页浏览某用户的公开榜单（他人主页用）：仅 status=已发布 且 visibility=公开
@@ -98,9 +99,19 @@ public interface RankingService {
     Map<String, String> sourceTypes();
 
     /**
+     * 榜单封面最大数量上限（系统配置 ranking.detail.cover_limit，上传表单单一事实源，需登录）
+     */
+    int coverLimit();
+
+    /**
      * 站内历史来源作品名去重列表（创建表单自动补全用，关键词可选，需登录）
      */
     List<String> sourceNames(String keyword);
+
+    /**
+     * 跟榜单排名项内容分页搜索（项名称/描述/来源作品名，需登录），sourceName 为可选二级过滤（Phase2）
+     */
+    IPage<ItemSearchResponse> pageItemsByKeyword(PageParam pageParam, String sourceName);
 
     /**
      * 删除榜单（软删除）：仅创建者本人或管理员可删

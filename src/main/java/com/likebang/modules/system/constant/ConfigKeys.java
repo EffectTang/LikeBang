@@ -21,4 +21,24 @@ public final class ConfigKeys {
      * RANKING_DETAIL_REASON_LIMIT 的兜底默认值
      */
     public static final int DEFAULT_RANKING_DETAIL_REASON_LIMIT = 10;
+
+    /**
+     * 一个榜单最多允许上传的封面图数量（详情页轮播展示，后台只配“最多几张”，下限固定为 1）
+     */
+    public static final String RANKING_DETAIL_COVER_LIMIT = "ranking.detail.cover_limit";
+
+    /**
+     * RANKING_DETAIL_COVER_LIMIT 的兜底默认值
+     */
+    public static final int DEFAULT_RANKING_DETAIL_COVER_LIMIT = 3;
+
+    /**
+     * 全站多维搜索“全部”聚合区每一维度（榜单/用户/排名项）展示的条数
+     */
+    public static final String SEARCH_AGGREGATE_SIZE = "search.aggregate.size";
+
+    /**
+     * SEARCH_AGGREGATE_SIZE 的兜底默认值
+     */
+    public static final int DEFAULT_SEARCH_AGGREGATE_SIZE = 5;
 }

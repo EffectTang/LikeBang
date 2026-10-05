@@ -5,11 +5,13 @@ import com.likebang.common.auth.RequireRole;
 import com.likebang.common.auth.UserRole;
 import com.likebang.common.result.Result;
 import com.likebang.common.utils.UserContext;
+import com.likebang.common.dto.PageParam;
 import com.likebang.modules.user.dto.UserPageParam;
 import com.likebang.modules.user.dto.request.UserCreateRequest;
 import com.likebang.modules.user.dto.request.UserUpdateRequest;
 import com.likebang.modules.user.dto.request.UserRoleUpdateRequest;
 import com.likebang.modules.user.dto.response.PublicProfileResponse;
+import com.likebang.modules.user.dto.response.UserSearchItemResponse;
 import com.likebang.modules.user.dto.response.UserInfoResponse;
 import com.likebang.modules.user.service.UserAdminService;
 import com.likebang.modules.user.service.UserService;
@@ -51,6 +53,16 @@ public class UserManageController {
     @GetMapping("/{id}/profile")
     public Result<PublicProfileResponse> publicProfile(@PathVariable Long id) {
         return Result.success(userService.publicProfile(id));
+    }
+
+    /**
+     * 按昵称搜索用户（分页，脱敏投影）：社区“按昵称找人”的公开读，任何登录用户可访问，
+     * 故与 publicProfile 一样不挂 @RequireRole；仅返回有效账号，结构上不含敏感字段。
+     * 字面量路径 /search 优先于 /{id} 类路径变量匹配。
+     */
+    @GetMapping("/search")
+    public Result<IPage<UserSearchItemResponse>> searchUsers(@ModelAttribute PageParam pageParam) {
+        return Result.success(userService.pageSearchPublic(pageParam));
     }
 
     /**

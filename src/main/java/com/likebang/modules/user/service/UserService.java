@@ -1,11 +1,14 @@
 package com.likebang.modules.user.service;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.likebang.common.dto.PageParam;
 import com.likebang.modules.user.dto.request.LoginRequest;
 import com.likebang.modules.user.dto.request.ProfileUpdateRequest;
 import com.likebang.modules.user.dto.request.RegisterRequest;
 import com.likebang.modules.user.dto.request.WxLoginRequest;
 import com.likebang.modules.user.dto.response.LoginResponse;
 import com.likebang.modules.user.dto.response.PublicProfileResponse;
+import com.likebang.modules.user.dto.response.UserSearchItemResponse;
 import com.likebang.modules.user.dto.response.UserInfoResponse;
 import com.likebang.modules.user.entity.SysUser;
 
@@ -49,4 +52,10 @@ public interface UserService {
      * 查询他人公开资料（脱敏投影，用于他人主页）：目标不存在/已删除/已禁用一律按"不存在"处理
      */
     PublicProfileResponse publicProfile(Long targetUserId);
+
+    /**
+     * 按昵称分页搜索用户（全站“按昵称找人”）：仅返回有效账号（未删除、未禁用），
+     * 脱敏投影为 {@link UserSearchItemResponse}，空关键词返回空页
+     */
+    IPage<UserSearchItemResponse> pageSearchPublic(PageParam pageParam);
 }

@@ -35,18 +35,24 @@
       </el-form-item>
 
       <el-form-item label="封面图">
-        <el-upload
-          :file-list="coverFileList"
-          :limit="1"
-          list-type="picture-card"
-          accept="image/jpeg,image/png,image/gif,image/webp"
-          :before-upload="beforeImageUpload"
-          :http-request="req => doUpload(req, 'cover')"
-          :on-remove="() => { form.coverUrl = ''; coverFileList.value = [] }"
-          :on-preview="handlePreview"
-        >
-          <el-icon><Plus /></el-icon>
-        </el-upload>
+        <div class="cover-upload">
+          <el-upload
+            :file-list="coverDisplayList"
+            :limit="coverLimit"
+            list-type="picture-card"
+            accept="image/jpeg,image/png,image/gif,image/webp"
+            :before-upload="beforeImageUpload"
+            :http-request="req => doUpload(req, 'cover')"
+            :on-remove="removeCover"
+            :on-preview="handlePreview"
+          >
+            <el-icon><Plus /></el-icon>
+          </el-upload>
+          <div class="cover-hint">
+            <span>最多 {{ coverLimit }} 张，当前 {{ form.coverUrls.length }}/{{ coverLimit }}；可点击封面右上角 × 移除</span>
+            <span class="tip">详情页将按上传顺序轮播展示</span>
+          </div>
+        </div>
         <el-dialog v-model="previewVisible" width="600px" append-to-body :show-close="true">
           <img :src="previewUrl" style="width: 100%" alt="预览" />
         </el-dialog>
@@ -163,7 +169,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
-import { createRanking, getSourceTypes, searchSourceNames } from '@/api/ranking'
+import { createRanking, getSourceTypes, searchSourceNames, getCoverLimit } from '@/api/ranking'
 import { uploadImage } from '@/api/file'
 import { resolveImage } from '@/utils/image'
 import { useUserStore } from '@/store/user'
@@ -176,7 +182,9 @@ const emit = defineEmits(['created'])
 const visible = ref(false)
 const submitting = ref(false)
 const formRef = ref()
-const coverFileList = ref([])
+// 封面最大数量：后台“系统设置”配置 ranking.detail.cover_limit，接口拉取；
+// 拉取失败（如未登录 401）兜底为 1，保证至少可上传 1 张
+const coverLimit = ref(1)
 const previewVisible = ref(false)
 const previewUrl = ref('')
 const userStore = useUserStore()
@@ -191,12 +199,18 @@ const newItem = () => ({
 const form = reactive({
   title: '',
   description: '',
-  coverUrl: '',
   categoryId: null,
   itemLimit: 10,
   visibility: 1,
+  // 封面相对路径列表（/uploads/xxx），数组顺序即详情页轮播顺序
+  coverUrls: [],
   items: [newItem()]
 })
+
+// el-upload picture-card 展示列表：由 form.coverUrls 派生（事实源只有相对路径数组一份）
+const coverDisplayList = computed(() =>
+  form.coverUrls.map((u, i) => ({ name: `封面${i + 1}`, url: resolveImage(u) }))
+)
 
 // 来源能力由分类配置驱动（sourceEnabled=1），不在前端硬编码分类判断
 const sourceEnabled = computed(() => {
@@ -245,13 +259,24 @@ function open() {
 function onOpen() {
   // 外部数据（categories）变化不影响已填内容，此处仅重置一次性提交态
   submitting.value = false
+  loadCoverLimit()
+}
+
+// 封面上限走配置中心单一事实源，不在前端硬编码（同来源字典白名单思路）
+async function loadCoverLimit() {
+  if (!userStore.isLogin) return
+  try {
+    const res = await getCoverLimit()
+    coverLimit.value = Number(res.data) || 1
+  } catch (e) {
+    // 拉取失败保持兜底上限，不阻断表单
+  }
 }
 
 function onClosed() {
   formRef.value?.resetFields()
   form.items = [newItem()]
-  form.coverUrl = ''
-  coverFileList.value = []
+  form.coverUrls = []
   form.categoryId = null
   form.itemLimit = 10
   form.visibility = 1
@@ -283,27 +308,35 @@ function handlePreview(file) {
   previewVisible.value = true
 }
 
-// 自定义上传：走 /files/image 拿相对路径回填表单；target='cover' 为榜单封面，否则为对应下标排名项图
+// 自定义上传：走 /files/image 拿相对路径回填封面列表；target='cover' 为榜单封面，否则为对应下标排名项图
 async function doUpload(req, target) {
   try {
     const res = await uploadImage(req.file)
     const url = res.data
     if (target === 'cover') {
-      form.coverUrl = url
-      // picture-card 列表用可渲染的完整路径预览
-      coverFileList.value = [{ name: req.file.name, url: resolveImage(url) }]
+      if (form.coverUrls.length >= coverLimit.value) {
+        ElMessage.warning(`封面图最多上传 ${coverLimit.value} 张`)
+        return
+      }
+      form.coverUrls.push(url)
+      if (form.coverUrls.length === coverLimit.value) {
+        ElMessage.success(`已达封面数量上限（${coverLimit.value} 张）`)
+      }
     } else {
       form.items[target].imageUrl = url
     }
   } catch (e) {
-    // 失败：移除列表中的占位条目，允许重试（request 拦截器已弹错）
-    if (target === 'cover') {
-      coverFileList.value = []
-      form.coverUrl = ''
-    } else {
+    // 失败：不写入列表即可重试（request 拦截器已弹错）
+    if (target !== 'cover') {
       form.items[target].imageUrl = ''
     }
   }
+}
+
+// 移除封面：按展示列表位置从事实源数组中剔除同下标路径
+function removeCover(file) {
+  const idx = coverDisplayList.value.findIndex(f => f.url === file.url)
+  if (idx >= 0) form.coverUrls.splice(idx, 1)
 }
 
 async function submit() {
@@ -325,7 +358,8 @@ async function submit() {
     const res = await createRanking({
       title: form.title,
       description: form.description,
-      coverUrl: form.coverUrl || null,
+      // 封面多图：可选（不传即无封面），上限由后端按配置中心同口径校验
+      coverUrls: form.coverUrls,
       categoryId: form.categoryId,
       itemLimit: form.itemLimit,
       visibility: form.visibility,
@@ -353,6 +387,17 @@ defineExpose({ open })
 </script>
 
 <style scoped>
+.cover-upload {
+  width: 100%;
+}
+.cover-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  color: #909399;
+  font-size: 12px;
+}
 .tip {
   margin-left: 12px;
   color: #909399;

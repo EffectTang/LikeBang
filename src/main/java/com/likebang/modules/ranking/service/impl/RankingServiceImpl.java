@@ -19,15 +19,18 @@ import com.likebang.modules.ranking.dto.request.RankingUpdateRequest;
 import com.likebang.modules.ranking.dto.request.ReasonCreateRequest;
 import com.likebang.modules.ranking.dto.request.ReasonUpdateRequest;
 import com.likebang.modules.ranking.dto.response.RankingDetailResponse;
+import com.likebang.modules.ranking.dto.response.ItemSearchResponse;
 import com.likebang.modules.ranking.dto.response.RankingResponse;
 import com.likebang.modules.ranking.dto.response.SpaceStatsResponse;
 import com.likebang.modules.ranking.entity.Ranking;
 import com.likebang.modules.ranking.entity.RankingCategory;
+import com.likebang.modules.ranking.entity.RankingCover;
 import com.likebang.modules.ranking.entity.RankingItem;
 import com.likebang.modules.ranking.entity.RankingItemVote;
 import com.likebang.modules.ranking.entity.RankingReason;
 import com.likebang.modules.ranking.entity.RankingReasonVote;
 import com.likebang.modules.ranking.mapper.RankingCategoryMapper;
+import com.likebang.modules.ranking.mapper.RankingCoverMapper;
 import com.likebang.modules.ranking.mapper.RankingItemMapper;
 import com.likebang.modules.ranking.mapper.RankingItemVoteMapper;
 import com.likebang.modules.ranking.mapper.RankingMapper;
@@ -46,6 +49,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -78,6 +82,7 @@ public class RankingServiceImpl implements RankingService {
     private final RankingItemMapper rankingItemMapper;
     private final RankingReasonMapper rankingReasonMapper;
     private final RankingCategoryMapper rankingCategoryMapper;
+    private final RankingCoverMapper rankingCoverMapper;
     private final RankingItemVoteMapper rankingItemVoteMapper;
     private final RankingReasonVoteMapper rankingReasonVoteMapper;
     private final SysUserMapper sysUserMapper;
@@ -122,12 +127,21 @@ public class RankingServiceImpl implements RankingService {
             }
         }
 
+        // 封面多图：专用列表字段优先，历史单图 coverUrl 兼容保留（同传时以列表为准）
+        List<String> coverUrls = request.getCoverUrls() == null ? List.of() : request.getCoverUrls();
+        if (coverUrls.isEmpty() && StrUtil.isNotBlank(request.getCoverUrl())) {
+            coverUrls = List.of(request.getCoverUrl());
+        }
+        List<String> cleanedCovers = cleanCovers(coverUrls);
+        validateCovers(cleanedCovers, coverLimit());
+
         Ranking ranking = new Ranking();
         ranking.setCreatorId(creatorId);
         ranking.setCategoryId(request.getCategoryId());
         ranking.setTitle(request.getTitle());
         ranking.setDescription(request.getDescription());
-        ranking.setCoverUrl(StrUtil.blankToDefault(request.getCoverUrl(), null));
+        // cover_url 冗余第 1 张：列表卡片单图视角不变
+        ranking.setCoverUrl(cleanedCovers.isEmpty() ? null : cleanedCovers.get(0));
         ranking.setItemLimit(request.getItemLimit());
         ranking.setItemCount(items.size());
         ranking.setVisibility(request.getVisibility() == null
@@ -136,6 +150,7 @@ public class RankingServiceImpl implements RankingService {
         ranking.setCreatedAt(DateTimeUtils.now());
         ranking.setUpdatedAt(DateTimeUtils.now());
         rankingMapper.insert(ranking);
+        saveCovers(ranking.getId(), cleanedCovers);
 
         int rank = 1;
         for (RankingCreateRequest.Item item : items) {
@@ -179,16 +194,12 @@ public class RankingServiceImpl implements RankingService {
     }
 
     @Override
-    public IPage<RankingResponse> pagePublic(PageParam pageParam, Long categoryId) {
-        LambdaQueryWrapper<Ranking> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Ranking::getStatus, STATUS_PUBLISHED)
-                .eq(Ranking::getVisibility, VISIBILITY_PUBLIC);
-        if (categoryId != null) {
-            wrapper.eq(Ranking::getCategoryId, categoryId);
-        }
-        applyKeyword(wrapper, pageParam.getKeyword());
-        wrapper.orderByDesc(Ranking::getCreatedAt);
-        return toResponsePage(pageParam, wrapper);
+    public IPage<RankingResponse> pagePublic(PageParam pageParam, Long categoryId, String creatorNickname) {
+        // 多维搜索：标题 / 描述 / 发起人昵称（走 XML LEFT JOIN），无关键词时等价于纯条件浏览
+        String keyword = StrUtil.trimToNull(pageParam.getKeyword());
+        IPage<Ranking> page = rankingMapper.selectPublicPageByKeyword(
+                pageParam.toPage(), categoryId, keyword, StrUtil.trimToNull(creatorNickname));
+        return toResponse(page);
     }
 
     @Override
@@ -295,6 +306,18 @@ public class RankingServiceImpl implements RankingService {
 
         RankingDetailResponse response = new RankingDetailResponse();
         BeanUtils.copyProperties(ranking, response);
+        // 封面回显：优先多图专表；无记录的历史榜单回落 cover_url 单图
+        List<String> covers = rankingCoverMapper.selectList(new LambdaQueryWrapper<RankingCover>()
+                        .eq(RankingCover::getRankingId, id)
+                        .orderByAsc(RankingCover::getSort)
+                        .orderByAsc(RankingCover::getId)).stream()
+                .map(RankingCover::getImageUrl)
+                .collect(Collectors.toList());
+        if (covers.isEmpty() && StrUtil.isNotBlank(ranking.getCoverUrl())) {
+            covers = List.of(ranking.getCoverUrl());
+        }
+        response.setCoverUrls(covers);
+        response.setCoverLimit(coverLimit());
         response.setCreatorNickname(nicknameMap(Collections.singleton(ranking.getCreatorId()))
                 .get(ranking.getCreatorId()));
         if (ranking.getCategoryId() != null) {
@@ -393,9 +416,22 @@ public class RankingServiceImpl implements RankingService {
     }
 
     @Override
+    public int coverLimit() {
+        return sysConfigService.getInt(
+                ConfigKeys.RANKING_DETAIL_COVER_LIMIT, ConfigKeys.DEFAULT_RANKING_DETAIL_COVER_LIMIT);
+    }
+
+    @Override
     public List<String> sourceNames(String keyword) {
         // 补全候选条数硬上限钳制在 SQL 内，防拖库
         return rankingItemMapper.selectDistinctSourceNames(StrUtil.trimToNull(keyword), 20);
+    }
+
+    @Override
+    public IPage<ItemSearchResponse> pageItemsByKeyword(PageParam pageParam, String sourceName) {
+        // 分页经 PageParam.toPage() 统一 size 上限钳制；关键词空白归一为 null（无关键词即全量搜索）
+        return rankingItemMapper.selectItemSearchPage(
+                pageParam.toPage(), StrUtil.trimToNull(pageParam.getKeyword()), StrUtil.trimToNull(sourceName));
     }
 
     /**
@@ -740,10 +776,18 @@ public class RankingServiceImpl implements RankingService {
             update.setDescription(request.getDescription());
             changed = true;
         }
-        if (request.getCoverUrl() != null) {
-            // null=不修改；空串能真正落库清空列（updateById 忽略 null 字段），前端按 falsy 处理
-            update.setCoverUrl(request.getCoverUrl().trim());
-            changed = true;
+        // 封面：null=不修改；非 null 即整组全量替换（至少 1 张，上限由配置中心驱动）。
+        // 历史单图 coverUrl 同传时以列表为准，仅传 coverUrl（旧客户端）也归一为列表处理，
+        // 防止 ranking_cover 与 cover_url 两份数据分叉
+        List<String> cleanedCovers = null;
+        if (request.getCoverUrls() != null || request.getCoverUrl() != null) {
+            List<String> input = request.getCoverUrls() == null
+                    ? List.of() : request.getCoverUrls();
+            if (input.isEmpty() && StrUtil.isNotBlank(request.getCoverUrl())) {
+                input = List.of(request.getCoverUrl());
+            }
+            cleanedCovers = cleanCovers(input);
+            validateCovers(cleanedCovers, coverLimit());
         }
         if (request.getCategoryId() != null) {
             update.setCategoryId(request.getCategoryId());
@@ -762,12 +806,72 @@ public class RankingServiceImpl implements RankingService {
             update.setVisibility(request.getVisibility());
             changed = true;
         }
-        if (!changed) {
+        if (!changed && cleanedCovers == null) {
             return;
         }
 
         update.setUpdatedAt(DateTimeUtils.now());
         rankingMapper.updateById(update);
+
+        if (cleanedCovers != null) {
+            // cover_url 显式写回第 1 张（空列表落 null）：updateById 忽略 null，覆盖式语义必须显式 set
+            rankingMapper.update(null, Wrappers.<Ranking>lambdaUpdate()
+                    .eq(Ranking::getId, id)
+                    .set(Ranking::getCoverUrl,
+                            cleanedCovers.isEmpty() ? null : cleanedCovers.get(0)));
+            saveCovers(id, cleanedCovers);
+        }
+    }
+
+    /**
+     * 封面列表清洗：去首尾空白、剔除空白项、按 URL 去重保序（保持上传顺序即轮播顺序）
+     */
+    private List<String> cleanCovers(List<String> covers) {
+        List<String> result = new ArrayList<>();
+        if (covers == null) {
+            return result;
+        }
+        for (String cover : covers) {
+            String url = StrUtil.trimToNull(cover);
+            if (url != null && !result.contains(url)) {
+                result.add(url);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 封面校验：数量只限上限（后台系统设置“最多几张”，0~N 均可，至少 1 张是前端录入约束），
+     * 单张长度与库列一致（512）
+     */
+    private void validateCovers(List<String> covers, int max) {
+        if (covers.size() > max) {
+            throw new BusinessException(ResultCode.BAD_REQUEST.getCode(),
+                    "封面图最多上传 " + max + " 张");
+        }
+        for (String url : covers) {
+            if (url.length() > 512) {
+                throw new BusinessException(ResultCode.BAD_REQUEST.getCode(), "封面地址长度不能超过512");
+            }
+        }
+    }
+
+    /**
+     * 封面整组落库：删旧插新（硬删，轻量媒体引用无社区数据保留必要），sort 即上传顺序
+     */
+    private void saveCovers(Long rankingId, List<String> covers) {
+        rankingCoverMapper.delete(new LambdaQueryWrapper<RankingCover>()
+                .eq(RankingCover::getRankingId, rankingId));
+        LocalDateTime now = DateTimeUtils.now();
+        for (int i = 0; i < covers.size(); i++) {
+            RankingCover cover = new RankingCover();
+            cover.setRankingId(rankingId);
+            cover.setImageUrl(covers.get(i));
+            cover.setSort(i);
+            cover.setCreatedAt(now);
+            cover.setUpdatedAt(now);
+            rankingCoverMapper.insert(cover);
+        }
     }
 
     @Override

@@ -7,7 +7,31 @@
     <template v-if="detail">
       <!-- 榜单头部 -->
       <div class="detail-header">
-        <img v-if="detail.coverUrl" :src="resolveImage(detail.coverUrl)" class="detail-cover" alt="封面" />
+        <!-- 封面多图：数量上限由后台系统设置驱动，详情页轮播展示，点击看大图；单图/历史数据保持大图直出 -->
+        <img
+          v-if="coverList.length === 1"
+          :src="resolveImage(coverList[0])"
+          class="detail-cover"
+          alt="封面"
+          @click="previewImage(resolveImage(coverList[0]))"
+        />
+        <el-carousel
+          v-else-if="coverList.length > 1"
+          :interval="5000"
+          indicator-position="none"
+          arrow="hover"
+          class="detail-cover-carousel"
+        >
+          <el-carousel-item v-for="(url, idx) in coverList" :key="idx">
+            <img
+              :src="resolveImage(url)"
+              class="detail-cover-img"
+              alt="封面"
+              @click="previewImage(resolveImage(url))"
+            />
+          </el-carousel-item>
+        </el-carousel>
+        <div v-if="coverList.length > 1" class="cover-counter">🖼 {{ coverList.length }} 张封面</div>
         <div class="detail-header-top">
           <h1 class="detail-title">{{ detail.title }}</h1>
           <div v-if="canDelete" class="header-ops">
@@ -291,6 +315,14 @@ function goUser(id) {
   if (id) router.push(`/users/${id}`)
 }
 
+// 封面列表：后端已含历史数据回落（无多图记录时回 coverUrl 单元素），此处再兜一层防旧接口缓存
+const coverList = computed(() => {
+  const d = detail.value
+  if (!d) return []
+  if (d.coverUrls?.length) return d.coverUrls
+  return d.coverUrl ? [d.coverUrl] : []
+})
+
 // ---- 榜单删除/编辑权限：同一套归属判定（本人或管理员），后端双重校验 ----
 const canDelete = computed(() => {
   if (!detail.value) return false
@@ -553,6 +585,27 @@ onMounted(() => {
   object-fit: cover;
   border-radius: 8px;
   margin-bottom: 16px;
+  cursor: zoom-in;
+}
+.detail-cover-carousel {
+  width: 100%;
+  height: 260px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.1);
+}
+.detail-cover-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: zoom-in;
+}
+.cover-counter {
+  text-align: right;
+  font-size: 12px;
+  opacity: 0.85;
+  margin: -10px 0 14px;
 }
 .detail-header-top {
   display: flex;

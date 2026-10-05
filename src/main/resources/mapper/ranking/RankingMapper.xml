@@ -50,4 +50,31 @@
         ORDER BY r.created_at DESC
     </select>
 
+    <!--
+      公开榜单多维搜索：已发布+公开，命中维度 = 标题 / 描述 / 发起人昵称。
+      LEFT JOIN sys_user 且把「未删除、未禁用」放进 ON 条件：这样昵称维度只对有效账号生效，
+      同时不影响仅靠标题/描述命中的榜单正常返回（发起人被禁用也 merely 少一路昵称命中，榜单本身仍出现）。
+      由 MyBatis-Plus 分页插件对 IPage 参数自动补 LIMIT。
+    -->
+    <select id="selectPublicPageByKeyword" resultType="com.likebang.modules.ranking.entity.Ranking">
+        SELECT r.*
+        FROM ranking r
+        LEFT JOIN sys_user u ON u.id = r.creator_id AND u.deleted = 0 AND u.status = 1
+        WHERE r.status = 1
+          AND r.visibility = 1
+        <if test="categoryId != null">
+            AND r.category_id = #{categoryId}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (r.title LIKE CONCAT('%', #{keyword}, '%')
+                OR r.description LIKE CONCAT('%', #{keyword}, '%')
+                OR u.nickname LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <!-- Phase2 二级过滤：按发起人昵称 AND 精筛，与 keyword 维度叠加 -->
+        <if test="creatorNickname != null and creatorNickname != ''">
+            AND u.nickname LIKE CONCAT('%', #{creatorNickname}, '%')
+        </if>
+        ORDER BY r.created_at DESC
+    </select>
+
 </mapper>

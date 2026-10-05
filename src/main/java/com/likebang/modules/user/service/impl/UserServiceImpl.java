@@ -10,6 +10,9 @@ import cn.hutool.jwt.JWT;
 import cn.hutool.jwt.JWTUtil;
 import cn.hutool.jwt.JWTValidator;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.likebang.common.dto.PageParam;
 import com.likebang.common.exception.BusinessException;
 import com.likebang.common.auth.UserRole;
 import com.likebang.common.result.ResultCode;
@@ -20,6 +23,7 @@ import com.likebang.modules.user.dto.request.RegisterRequest;
 import com.likebang.modules.user.dto.request.WxLoginRequest;
 import com.likebang.modules.user.dto.response.LoginResponse;
 import com.likebang.modules.user.dto.response.PublicProfileResponse;
+import com.likebang.modules.user.dto.response.UserSearchItemResponse;
 import com.likebang.modules.user.dto.response.UserInfoResponse;
 import com.likebang.modules.user.entity.SysUser;
 import com.likebang.modules.user.mapper.SysUserMapper;
@@ -235,6 +239,33 @@ public class UserServiceImpl implements UserService {
         response.setIntro(user.getIntro());
         response.setCreatedAt(user.getCreatedAt());
         return response;
+    }
+
+    /**
+     * 按昵称分页搜索用户：只取脱敏投影字段，仅命中有效账号（@TableLogic 自动排除软删 + status=1 排除禁用）。
+     * 空关键词直接返回空页，不“无关键词=全量用户”，避免脱敏列表被批量拖取。
+     */
+    @Override
+    public IPage<UserSearchItemResponse> pageSearchPublic(PageParam pageParam) {
+        String keyword = StrUtil.trimToNull(pageParam.getKeyword());
+        if (keyword == null) {
+            return pageParam.toPage();
+        }
+        Page<SysUser> page = sysUserMapper.selectPage(pageParam.toPage(),
+                Wrappers.<SysUser>lambdaQuery()
+                        .select(SysUser::getId, SysUser::getNickname,
+                                SysUser::getAvatarUrl, SysUser::getIntro)
+                        .eq(SysUser::getStatus, 1)
+                        .like(SysUser::getNickname, keyword)
+                        .orderByDesc(SysUser::getId));
+        return page.convert(u -> {
+            UserSearchItemResponse item = new UserSearchItemResponse();
+            item.setId(u.getId());
+            item.setNickname(u.getNickname());
+            item.setAvatarUrl(u.getAvatarUrl());
+            item.setIntro(u.getIntro());
+            return item;
+        });
     }
 
     /**

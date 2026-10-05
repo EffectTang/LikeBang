@@ -20,9 +20,19 @@ export function getSourceTypes() {
   return request.get('/rankings/source-types')
 }
 
+// 榜单封面最大数量上限（后台“系统设置”可改 ranking.detail.cover_limit，需登录）
+export function getCoverLimit() {
+  return request.get('/rankings/cover-limit')
+}
+
 // 站内历史来源作品名（创建表单自动补全，keyword 可选，需登录）
 export function searchSourceNames(keyword) {
   return request.get('/rankings/source-names', { params: { keyword } })
+}
+
+// 跟榜单排名项内容搜索（支持 keyword + sourceName 复合过滤，需登录）
+export function searchItems(params) {
+  return request.get('/rankings/items/search', { params })
 }
 
 // 删除榜单（创建者本人或管理员）

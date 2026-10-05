@@ -5,6 +5,8 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.util.List;
+
 /**
  * 编辑榜单请求：仅元数据（标题/描述/分类/数量上限/可见性）。
  * <p>
@@ -24,10 +26,17 @@ public class RankingUpdateRequest {
     private String description;
 
     /**
-     * 封面图地址；null=不修改，传空字符串可清空
+     * 封面图地址；null=不修改，传空字符串可清空（历史单图字段，同传 coverUrls 时以列表为准）
      */
     @Size(max = 512, message = "封面地址长度不能超过512")
     private String coverUrl;
+
+    /**
+     * 封面图地址列表；null=不修改，非 null 即整组全量替换（至少 1 张，
+     * 上限由系统配置 ranking.detail.cover_limit 在 Service 层校验）
+     */
+    @Size(max = 10, message = "封面图数量不能超过10张")
+    private List<String> coverUrls;
 
     /**
      * 分类ID，仅支持换为其他分类（null=不修改，本期不支持清空分类）
