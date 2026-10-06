@@ -4,6 +4,8 @@ const auth = require('../../utils/auth')
 
 const VIS_LABELS = ['公开', '仅链接可见', '私有']
 const VIS_VALUES = [1, 2, 0]
+const LIMIT_MIN = 2
+const LIMIT_MAX = 50
 
 Page({
   data: {
@@ -17,6 +19,7 @@ Page({
     catNames: ['未分类'],
 
     itemLimit: 5,
+    limitHint: LIMIT_MIN + '~' + LIMIT_MAX + ' 可调',
     visLabels: VIS_LABELS,
     visIndex: 0,
 
@@ -29,13 +32,15 @@ Page({
   },
 
   onLoad() {
-    if (!auth.isLogin()) {
-      wx.navigateTo({ url: '/pages/login/login' })
-      return
-    }
+    // 登录守卫统一放 onShow：tab 页常驻，再次切 tab 时 onLoad 不再执行
     this.setData({ items: [this.emptyItem(), this.emptyItem()] })
     this.loadCategories()
     this.loadSourceTypes()
+  },
+
+  onShow() {
+    // 未登录引导登录；登录成功 navigateBack 回本页时已持登录态，不会循环跳转
+    if (!auth.isLogin()) wx.navigateTo({ url: '/pages/login/login' })
   },
 
   emptyItem() {
@@ -73,6 +78,20 @@ Page({
   },
   onLimit(e) {
     this.setData({ itemLimit: e.detail.value })
+  },
+  // 步进器：点加减按钮按步长调整并钉在合法范围内
+  stepLimit(e) {
+    const cur = Number(this.data.itemLimit) || LIMIT_MIN
+    const next = cur + Number(e.currentTarget.dataset.step)
+    this.setData({ itemLimit: this.clampLimit(next) })
+  },
+  // 手输结束时归一化（清空/非法回默认，越界钳到边界），避免非法值留到提交才报错
+  onLimitBlur(e) {
+    this.setData({ itemLimit: this.clampLimit(Number(e.detail.value)) })
+  },
+  clampLimit(n) {
+    if (!n || Number.isNaN(n)) return LIMIT_MIN
+    return Math.min(LIMIT_MAX, Math.max(LIMIT_MIN, Math.floor(n)))
   },
   onCatChange(e) {
     const idx = Number(e.detail.value)
@@ -127,8 +146,8 @@ Page({
       return
     }
     const limit = Number(this.data.itemLimit)
-    if (!limit || limit < 3 || limit > 50) {
-      wx.showToast({ title: '名次上限需 3~50', icon: 'none' })
+    if (!limit || limit < LIMIT_MIN || limit > LIMIT_MAX) {
+      wx.showToast({ title: `名次上限需 ${LIMIT_MIN}~${LIMIT_MAX}`, icon: 'none' })
       return
     }
     const list = this.data.items
@@ -176,7 +195,14 @@ Page({
     this.setData({ submitting: true })
     api.createRanking(payload).then((id) => {
       wx.showToast({ title: '发布成功', icon: 'success' })
-      setTimeout(() => wx.redirectTo({ url: '/pages/detail/detail?id=' + id }), 700)
+      // create 是常驻 tab 页：若直接 redirectTo detail，会销毁 tab 栏且 detail 无返回路径成孤岛；
+      // 先 switchTab 回发现（顺带重建 create 得到干净表单），再 navigateTo 新榜单详情
+      setTimeout(() => {
+        wx.switchTab({
+          url: '/pages/index/index',
+          success: () => wx.navigateTo({ url: '/pages/detail/detail?id=' + id })
+        })
+      }, 700)
     }).catch(() => {}).then(() => this.setData({ submitting: false }))
   },
 

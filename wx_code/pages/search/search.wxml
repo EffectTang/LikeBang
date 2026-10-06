@@ -1,0 +1,55 @@
+<view class="page">
+  <!-- 双常驻输入：标题×发起人 AND 交叉过滤，与 Web Phase2 同语义 -->
+  <view class="search-form">
+    <view class="field">
+      <text class="label">标题</text>
+      <input class="inp" placeholder="搜索榜单标题 / 描述" value="{{keyword}}"
+             confirm-type="search" bindinput="onKeyword" bindconfirm="search" />
+    </view>
+    <view class="field">
+      <text class="label">发起人</text>
+      <input class="inp" placeholder="@昵称，精确找 TA 创建的榜单" value="{{creatorNickname}}"
+             confirm-type="search" bindinput="onCreator" bindconfirm="search" />
+    </view>
+    <button class="go-btn" bindtap="search">搜索</button>
+  </view>
+
+  <!-- 初始态：最近搜索 -->
+  <block wx:if="{{!searched}}">
+    <view class="hist-head" wx:if="{{history.length > 0}}">
+      <text>最近搜索</text>
+      <text class="hist-clear" bindtap="clearHistory">清空</text>
+    </view>
+    <view class="hist-chips" wx:if="{{history.length > 0}}">
+      <view class="chip" wx:for="{{history}}" wx:key="index"
+            data-idx="{{index}}" bindtap="tapHistory">{{item.label}}</view>
+    </view>
+  </block>
+
+  <!-- 结果态：搜索页自渲染，不回传发现页 -->
+  <block wx:else>
+    <view class="res-count" wx:if="{{!loading}}">共 {{total}} 个榜单</view>
+    <view class="list">
+      <view wx:for="{{list}}" wx:key="id" class="rank-card" data-id="{{item.id}}" bindtap="goDetail">
+        <image wx:if="{{item.cover}}" class="card-cover" src="{{item.cover}}" mode="aspectFill" />
+        <view wx:else class="card-cover cover-ph">🏆</view>
+        <view class="card-body">
+          <view class="card-title">{{item.title}}</view>
+          <view class="card-desc">{{item.description || '暂无描述'}}</view>
+          <view class="card-meta">
+            <text>🏆 Top {{item.itemLimit}}</text>
+            <text>📋 {{item.itemCount}} 项</text>
+            <text>👁 {{item.viewCount}}</text>
+          </view>
+          <view class="card-foot">
+            <text class="tag" wx:if="{{item.categoryName}}">{{item.categoryName}}</text>
+            <text class="creator">@{{item.creatorNickname}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    <view wx:if="{{loading}}" class="loading-tip">加载中…</view>
+    <view wx:elif="{{!hasMore && list.length > 0}}" class="loading-tip">没有更多了</view>
+    <view wx:if="{{!loading && list.length === 0}}" class="empty">没有符合条件的榜单，换个词试试</view>
+  </block>
+</view>

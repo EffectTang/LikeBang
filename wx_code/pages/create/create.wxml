@@ -13,18 +13,28 @@
     <view class="field row">
       <text class="flabel">分类</text>
       <picker range="{{catNames}}" value="{{catIndex}}" bindchange="onCatChange">
-        <view class="finput picker">{{catNames[catIndex]}}</view>
+        <view class="finput picker">
+          <text class="picker-text {{catNames[catIndex] ? '' : 'ph'}}">{{catNames[catIndex] || '请选择分类'}}</text>
+          <text class="picker-arrow">▾</text>
+        </view>
       </picker>
     </view>
     <view class="field row">
       <text class="flabel">名次上限</text>
-      <input class="finput num" type="number" value="{{itemLimit}}" bindinput="onLimit" />
-      <text class="muted">Top</text>
+      <view class="stepper">
+        <view class="step-btn" hover-class="step-btn-hover" data-step="-1" bindtap="stepLimit">−</view>
+        <input class="step-num" type="number" value="{{itemLimit}}" bindinput="onLimit" bindblur="onLimitBlur" />
+        <view class="step-btn" hover-class="step-btn-hover" data-step="1" bindtap="stepLimit">＋</view>
+      </view>
+      <text class="muted step-hint">{{limitHint}}</text>
     </view>
     <view class="field row">
       <text class="flabel">可见性</text>
       <picker range="{{visLabels}}" value="{{visIndex}}" bindchange="onVisChange">
-        <view class="finput picker">{{visLabels[visIndex]}}</view>
+        <view class="finput picker">
+          <text class="picker-text {{visLabels[visIndex] ? '' : 'ph'}}">{{visLabels[visIndex] || '请选择可见性'}}</text>
+          <text class="picker-arrow">▾</text>
+        </view>
       </picker>
     </view>
     <view class="field row">
@@ -52,7 +62,10 @@
       <block wx:if="{{sourceOn}}">
         <view class="src-row">
           <picker range="{{srcLabels}}" value="{{it.srcIndex}}" data-idx="{{idx}}" bindchange="onItemSrcChange">
-            <view class="finput picker sm">来源类型：{{srcLabels[it.srcIndex]}}</view>
+            <view class="finput picker sm">
+              <text class="picker-text">来源类型：{{srcLabels[it.srcIndex]}}</text>
+              <text class="picker-arrow">▾</text>
+            </view>
           </picker>
         </view>
         <input class="finput" placeholder="来源作品名（如 让子弹飞，选填）" value="{{it.sourceName}}" data-idx="{{idx}}" data-key="sourceName" bindinput="onItemField" maxlength="100" />

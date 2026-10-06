@@ -46,12 +46,6 @@
   margin-left: auto;
 }
 
-.create-entry {
-  margin: 24rpx 0;
-  height: 88rpx;
-  line-height: 88rpx;
-}
-
 .sec-title {
   font-size: 30rpx;
   font-weight: 600;

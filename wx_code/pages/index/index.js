@@ -7,8 +7,7 @@ Page({
   data: {
     list: [],
     categories: [],
-    activeCat: null,      // null=全部
-    keyword: '',
+    activeCat: null,      // null=全部（搜索态已外迁独立搜索页 pages/search，发现页纯浏览）
     current: 1,
     total: 0,
     hasMore: true,
@@ -40,7 +39,6 @@ Page({
     this.setData(reset ? { loading: true } : { loadingMore: true })
 
     const params = { current, size: PAGE_SIZE }
-    if (this.data.keyword) params.keyword = this.data.keyword
     if (this.data.activeCat != null) params.categoryId = this.data.activeCat
 
     api.listPublicRankings(params).then((page) => {
@@ -75,14 +73,6 @@ Page({
     }
   },
 
-  onSearchInput(e) {
-    this.setData({ keyword: e.detail.value })
-  },
-
-  onSearch() {
-    this.loadList(true)
-  },
-
   selectCat(e) {
     const id = e.currentTarget.dataset.id
     this.setData({ activeCat: id === '' ? null : id })
@@ -99,8 +89,9 @@ Page({
     if (id) wx.navigateTo({ url: '/pages/user/user?id=' + id })
   },
 
-  goCreate() {
-    wx.navigateTo({ url: '/pages/create/create' })
+  // 发现页不承载搜索态：点击伪框进独立搜索页（标题×发起人 AND 交叉过滤 + 最近搜索）
+  goSearch() {
+    wx.navigateTo({ url: '/pages/search/search' })
   },
 
   onReachBottom() {

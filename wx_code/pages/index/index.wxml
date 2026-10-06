@@ -1,11 +1,10 @@
 <view class="page">
-  <!-- 搜索 + 发起 -->
+  <!-- 伪搜索框+搜索按钮：均点击进独立搜索页（标题×发起人 AND 交叉过滤+最近搜索，见 pages/search）；按钮显性提示可点击 -->
   <view class="search-bar">
-    <view class="search-box">
-      <input class="search-input" placeholder="搜索榜单标题 / 描述" value="{{keyword}}"
-             confirm-type="search" bindinput="onSearchInput" bindconfirm="onSearch" />
+    <view class="search-box" bindtap="goSearch">
+      <text class="fake-ph">🔍 搜索榜单标题 / 发起人</text>
     </view>
-    <view class="create-btn" bindtap="goCreate">＋ 发起</view>
+    <view class="search-btn" bindtap="goSearch">搜索</view>
   </view>
 
   <!-- 分类 -->
@@ -39,5 +38,5 @@
 
   <view wx:if="{{loading}}" class="loading-tip">加载中…</view>
   <view wx:elif="{{!hasMore && list.length > 0}}" class="loading-tip">没有更多了</view>
-  <view wx:if="{{!loading && list.length === 0}}" class="empty">还没有榜单，点右上角发起第一个吧</view>
+  <view wx:if="{{!loading && list.length === 0}}" class="empty">还没有榜单，从下方「发起榜单」创建第一个吧</view>
 </view>

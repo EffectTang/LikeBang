@@ -82,10 +82,6 @@ Page({
     wx.navigateTo({ url: '/pages/detail/detail?id=' + e.currentTarget.dataset.id })
   },
 
-  goCreate() {
-    wx.navigateTo({ url: '/pages/create/create' })
-  },
-
   goLogin() {
     wx.navigateTo({ url: '/pages/login/login' })
   },
