@@ -1,4 +1,13 @@
 <view class="create-page">
+  <!-- 未登录引导态：tab 页不自动跳登录页（会形成返回死循环），改为页内引导，用户可自由切其他 tab 离开 -->
+  <view wx:if="{{notLogin}}" class="login-guide">
+    <view class="lg-icon">🏆</view>
+    <view class="lg-title">登录后即可发起榜单</view>
+    <view class="lg-sub">微信一键登录，新用户自动注册</view>
+    <button class="btn-primary lg-btn" bindtap="goLogin">去登录</button>
+  </view>
+
+  <block wx:else>
   <!-- 基本信息 -->
   <view class="card">
     <view class="sec-header">基本信息</view>
@@ -84,4 +93,5 @@
   </view>
 
   <button class="btn-primary submit" loading="{{submitting}}" bindtap="submit">发布榜单</button>
+  </block>
 </view>

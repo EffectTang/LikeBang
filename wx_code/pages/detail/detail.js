@@ -24,14 +24,14 @@ Page({
 
   onLoad(options) {
     this.setData({ id: options.id })
+    // 登录守卫只在进入时跳一次（onLoad 仅执行一次）：若放 onShow，
+    // 从登录页返回会重新触发 onShow 再跳，形成“返回→再弹登录”死循环把用户困住
+    if (!auth.isLogin()) wx.navigateTo({ url: '/pages/login/login' })
   },
 
   onShow() {
-    if (!auth.isLogin()) {
-      wx.navigateTo({ url: '/pages/login/login' })
-      return
-    }
-    this.loadDetail()
+    // 仅按登录态加载数据（登录成功 navigateBack 回本页时也走这里补加载）
+    if (auth.isLogin()) this.loadDetail()
   },
 
   onPullDownRefresh() {

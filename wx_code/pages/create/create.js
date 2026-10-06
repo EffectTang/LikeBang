@@ -28,7 +28,8 @@ Page({
     sourceOn: false,      // 当前分类是否开启来源能力（随 catIndex 联动，供 WXML 条件渲染）
 
     items: [],            // [{name, description, reason, imageUrl, imagePrev, srcIndex}]
-    submitting: false
+    submitting: false,
+    notLogin: false       // 未登录引导态（不自动跳登录页，见 onShow 注释）
   },
 
   onLoad() {
@@ -39,8 +40,14 @@ Page({
   },
 
   onShow() {
-    // 未登录引导登录；登录成功 navigateBack 回本页时已持登录态，不会循环跳转
-    if (!auth.isLogin()) wx.navigateTo({ url: '/pages/login/login' })
+    // 登录门：未登录仅切换为页内引导态，绝不自动 navigateTo 登录页——
+    // create 是常驻 tab 页，从登录页返回会落回本页并再次触发 onShow，
+    // 自动跳转会形成“返回→又弹登录页”死循环把用户困住；跳不跳交给用户点按钮决定
+    this.setData({ notLogin: !auth.isLogin() })
+  },
+
+  goLogin() {
+    wx.navigateTo({ url: '/pages/login/login' })
   },
 
   emptyItem() {

@@ -186,3 +186,37 @@
   justify-content: center;
   line-height: normal;
 }
+
+/* 未登录引导态：替代自动跳登录页（tab 页自动跳转会形成“返回→再弹登录”死循环） */
+.login-guide {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 120rpx 40rpx;
+  text-align: center;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+.lg-icon {
+  font-size: 120rpx;
+}
+.lg-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #303133;
+  margin-top: 24rpx;
+}
+.lg-sub {
+  font-size: 26rpx;
+  color: #909399;
+  margin-top: 12rpx;
+}
+.lg-btn {
+  margin-top: 48rpx;
+  height: 88rpx;
+  width: 100%;
+  box-sizing: border-box;
+  /* button 文字居中用 flex，不吃基础库默认 line-height/padding */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
