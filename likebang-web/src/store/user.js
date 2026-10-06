@@ -24,6 +24,16 @@ export const useUserStore = defineStore('user', {
       this.setAuth(res.data)
       return res.data
     },
+    // 微信扫码登录：取登录小程序码（{ sceneId, qrBase64, expiresIn }）
+    async scanQr() {
+      const res = await request.get('/user/auth/scan-qr')
+      return res.data
+    },
+    // 轮询扫码状态（{ status, token, userInfo }），CONFIRMED 时一次性领取 token
+    async scanStatus(sceneId) {
+      const res = await request.get('/user/auth/scan-status', { params: { sceneId } })
+      return res.data
+    },
     setAuth({ token, userInfo }) {
       this.token = token
       this.userInfo = userInfo

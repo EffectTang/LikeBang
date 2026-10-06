@@ -34,6 +34,7 @@ likebang:
       app-id: ${WX_APP_ID:}
       # AppSecret：同页面"小程序密钥"处生成，属敏感信息，切勿提交仓库，生产通过环境变量 WX_APP_SECRET 注入
       app-secret: ${WX_APP_SECRET:}
+      env-version: develop
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml

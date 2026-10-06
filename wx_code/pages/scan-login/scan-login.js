@@ -44,7 +44,13 @@ Page({
     api.scanConfirm(scene)
       .then(() => {
         this.setData({ confirming: false, done: true })
-        wx.showToast({ title: '已确认，请在电脑端继续', icon: 'none', duration: 3000 })
+        wx.showToast({ title: '已确认，请在电脑端继续', icon: 'none', duration: 1500 })
+        // 确认页只是一次性“遥控器”：稍作停留后回小程序主流程，
+        // reLaunch 清空页面栈，避免返回时再次看到确认页重复确认；
+        // Web 端落地页由浏览器轮询自行跳转，与本页无关
+        setTimeout(() => {
+          wx.reLaunch({ url: '/pages/index/index' })
+        }, 1500)
       })
       .catch(() => {
         // 失败提示（二维码已失效/登录态过期等）由 request.js 统一 toast
