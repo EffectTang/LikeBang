@@ -5,6 +5,7 @@ Page({
   data: {
     mode: 'login',
     submitting: false,
+    wxSubmitting: false,
     form: { username: '', password: '', nickname: '', email: '', phone: '' }
   },
 
@@ -52,5 +53,33 @@ Page({
     } else {
       wx.switchTab({ url: '/pages/index/index' })
     }
+  },
+
+  // 微信一键登录：wx.login 取 code → 后端 jscode2session 换 openid，命中登录/未命中静默注册 → 同款 JWT
+  wxAuthLogin() {
+    if (this.data.wxSubmitting) return
+    this.setData({ wxSubmitting: true })
+    wx.login({
+      success: (res) => {
+        if (!res.code) {
+          this.setData({ wxSubmitting: false })
+          wx.showToast({ title: '微信登录失败，请重试', icon: 'none' })
+          return
+        }
+        api.wxLogin({ code: res.code })
+          .then((data) => {
+            auth.setAuth(data)
+            wx.showToast({ title: '登录成功', icon: 'success' })
+            setTimeout(() => this.goAfterLogin(), 600)
+          })
+          .catch(() => {
+            this.setData({ wxSubmitting: false })
+          })
+      },
+      fail: () => {
+        this.setData({ wxSubmitting: false })
+        wx.showToast({ title: '微信登录失败，请重试', icon: 'none' })
+      }
+    })
   }
 })

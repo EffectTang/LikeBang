@@ -1,6 +1,8 @@
 package com.likebang.modules.user.controller;
 
 import com.likebang.common.result.Result;
+import com.likebang.common.auth.RequireRole;
+import com.likebang.common.auth.UserRole;
 import com.likebang.common.utils.UserContext;
 import com.likebang.modules.user.dto.request.LoginRequest;
 import com.likebang.modules.user.dto.request.ProfileUpdateRequest;
@@ -9,6 +11,7 @@ import com.likebang.modules.user.dto.request.WxLoginRequest;
 import com.likebang.modules.user.dto.response.LoginResponse;
 import com.likebang.modules.user.dto.response.UserInfoResponse;
 import com.likebang.modules.user.service.UserService;
+import com.likebang.modules.user.service.WxAccessTokenService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final UserService userService;
+    private final WxAccessTokenService wxAccessTokenService;
 
     /**
      * 注册（成功后直接返回登录态）
@@ -67,5 +71,16 @@ public class AuthController {
     @PutMapping("/profile")
     public Result<UserInfoResponse> updateProfile(@Valid @RequestBody ProfileUpdateRequest request) {
         return Result.success(userService.updateProfile(UserContext.requireUserId(), request));
+    }
+
+    /**
+     * 【临时自测入口·扫码登录第 1 步】校验微信 access_token 能否获取（验证 IP 白名单/appid/secret）。
+     * 仅管理员可调；只返回 token 长度+前缀预览，不回显完整值；失败则直接抛出微信 errcode/errmsg 便于排障。
+     * 全链路联调稳定后可移除此入口。
+     */
+    @RequireRole(UserRole.ADMIN)
+    @GetMapping("/wx-token-check")
+    public Result<String> wxTokenCheck() {
+        return Result.success(wxAccessTokenService.maskedPreview());
     }
 }

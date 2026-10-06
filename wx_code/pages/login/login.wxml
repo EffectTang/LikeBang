@@ -45,9 +45,13 @@
     <button class="btn-primary submit" loading="{{submitting}}" bindtap="submit">
       {{mode === 'login' ? '登录' : '注册并登录'}}
     </button>
+
+    <view class="divider"><text>或</text></view>
+
+    <button class="btn-wx" loading="{{wxSubmitting}}" bindtap="wxAuthLogin">微信一键登录</button>
   </view>
 
   <view class="tip">
-    后端暂无微信一键登录，当前使用账号密码体系（开发默认超管 admin / root）。
+    微信一键登录：新用户自动注册，老用户凭微信直接登录。开发默认超管 admin / root。
   </view>
 </view>

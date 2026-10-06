@@ -48,5 +48,11 @@ public class AuthProperties {
          * 小程序 AppSecret：与 AppID 同页获取，属敏感信息，禁止硬编码/入库，生产经环境变量注入
          */
         private String appSecret;
+
+        /**
+         * 小程序码指向的版本：release 已发布正式版 / trial 体验版 / develop 开发版。
+         * 小程序尚未发布时须改配 trial 或 develop（且扫码人需具备对应权限），联调期常设为 trial。
+         */
+        private String envVersion = "release";
     }
 }

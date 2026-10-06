@@ -1,0 +1,30 @@
+<view class="scan-page">
+  <view class="brand">
+    <view class="logo">🏆</view>
+    <view class="brand-title">网页登录确认</view>
+  </view>
+
+  <!-- 二维码无效/过期 -->
+  <view class="panel" wx:if="{{invalid}}">
+    <view class="msg">二维码无效或已过期，请在电脑端刷新后重新扫码。</view>
+  </view>
+
+  <!-- 未登录：确认要求小程序处于登录态 -->
+  <view class="panel" wx:elif="{{!logged}}">
+    <view class="msg">请先登录后再确认网页登录。</view>
+    <button class="btn-primary confirm" bindtap="goLogin">去登录</button>
+  </view>
+
+  <!-- 已确认 -->
+  <view class="panel" wx:elif="{{done}}">
+    <view class="msg ok">已确认登录，请回到电脑端继续操作。</view>
+  </view>
+
+  <!-- 待确认 -->
+  <view class="panel" wx:else>
+    <view class="msg">当前小程序登录身份：</view>
+    <view class="who">{{nickname}}</view>
+    <view class="sub">确认后将在此电脑完成登录。</view>
+    <button class="btn-primary confirm" loading="{{confirming}}" bindtap="confirm">确认登录</button>
+  </view>
+</view>

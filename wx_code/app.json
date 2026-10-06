@@ -6,6 +6,7 @@
     "pages/item/item",
     "pages/create/create",
     "pages/login/login",
+    "pages/scan-login/scan-login",
     "pages/profile/profile",
     "pages/user/user"
   ],

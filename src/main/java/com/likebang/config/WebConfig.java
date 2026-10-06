@@ -47,6 +47,9 @@ public class WebConfig implements WebMvcConfigurer {
                         "/user/auth/login",
                         "/user/auth/register",
                         "/user/auth/wx-login",
+                        // Web 扫码登录：生成二维码与轮询状态为公开接口（扫码确认 scan-confirm 需小程序登录态，不放行）
+                        "/user/auth/scan-qr",
+                        "/user/auth/scan-status",
                         // 上传图片走 <img> 标签访问，浏览器不会携带 Authorization 头，整体放行（仅只读静态资源）
                         "/uploads/**",
                         "/error");

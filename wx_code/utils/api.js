@@ -7,6 +7,8 @@ module.exports = {
   register: (form) => http.post('/user/auth/register', form),
   // 微信登录：body { code, nickname?, avatarUrl? }，code 由 wx.login 获取，后端换 openid 签发同款 JWT
   wxLogin: (form) => http.post('/user/auth/wx-login', form),
+  // Web 扫码登录确认：小程序（已登录）扫描电脑上的小程序码后，用 scene 换取 Web 登录态（需带小程序自身 token）
+  scanConfirm: (sceneId) => http.post('/user/auth/scan-confirm', { sceneId }),
   me: () => http.get('/user/auth/me'),
   // 自助改资料：body { nickname, avatarUrl, intro }，头像/简介传空串=清空，返回最新用户信息
   updateProfile: (form) => http.put('/user/auth/profile', form),

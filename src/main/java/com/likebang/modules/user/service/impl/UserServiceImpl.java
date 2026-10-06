@@ -150,6 +150,24 @@ public class UserServiceImpl implements UserService {
     }
 
     /**
+     * 为已通过身份校验的用户签发登录态：供扫码确认等内部流程复用，
+     * 与账号密码/微信登录一致地校验有效并更新最后登录时间。
+     */
+    @Override
+    public LoginResponse issueLoginToken(Long userId) {
+        SysUser user = getExistingById(userId);
+        if (user.getStatus() == null || user.getStatus() != 1) {
+            throw new BusinessException(ResultCode.USER_DISABLED);
+        }
+        SysUser update = new SysUser();
+        update.setId(user.getId());
+        update.setLastLoginAt(LocalDateTime.now());
+        sysUserMapper.updateById(update);
+        user.setLastLoginAt(update.getLastLoginAt());
+        return buildLoginResponse(user);
+    }
+
+    /**
      * 调用微信 jscode2session 用 code 换取 openid（失败即抛业务异常，绝不泄露 appSecret）
      */
     private String fetchOpenid(String code, String appId, String appSecret) {

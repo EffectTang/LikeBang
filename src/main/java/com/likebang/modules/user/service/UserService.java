@@ -44,6 +44,12 @@ public interface UserService {
     UserInfoResponse currentUser(Long userId);
 
     /**
+     * 为已通过身份校验的用户签发登录态（扫码确认等内部复用）：校验账号有效、
+     * 更新最后登录时间，签发与账号密码/微信登录完全一致的 JWT。
+     */
+    LoginResponse issueLoginToken(Long userId);
+
+    /**
      * 自助修改个人资料（昵称/头像/自我介绍），返回最新用户信息供前端刷新缓存
      */
     UserInfoResponse updateProfile(Long userId, ProfileUpdateRequest request);
