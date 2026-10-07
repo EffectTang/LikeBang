@@ -1,32 +1,47 @@
 <view class="profile-page">
-  <!-- 头像 -->
+  <!-- 头像：外层 view 定形（正圆 200×200），内层透明 button 铺满承接 open-type=chooseAvatar 点击。
+       直接用 <button> 作容器会被小程序 button 默认 min-height/width:100% 撑成椭圆，故用叠加法。 -->
   <view class="avatar-wrap">
-    <view class="avatar-box" bindtap="chooseAvatar">
+    <view class="avatar-box">
       <image wx:if="{{avatarPrev}}" class="avatar" src="{{avatarPrev}}" mode="aspectFill" />
-      <view wx:else class="avatar ph">{{avatarChar}}</view>
+      <view wx:else class="avatar-ph">{{avatarChar}}</view>
+      <button class="avatar-overlay" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar"></button>
     </view>
-    <view class="avatar-actions">
-      <text class="avatar-btn" bindtap="chooseAvatar">点击上传头像</text>
-      <text wx:if="{{avatarPrev}}" class="avatar-btn danger" bindtap="removeAvatar">移除</text>
-    </view>
+    <text class="avatar-tip">点击头像更换（可选用微信头像）</text>
+    <text wx:if="{{avatarPrev}}" class="avatar-remove" bindtap="removeAvatar">移除头像</text>
   </view>
 
-  <view class="field card">
-    <view class="label">用户名</view>
-    <view class="readonly">@{{username}}</view>
+  <!-- 用户名：仅账密注册用户显示；wx_ 技术串隐藏 -->
+  <view wx:if="{{showUsername}}" class="cell cell-readonly">
+    <text class="cell-label">用户名</text>
+    <text class="cell-value">@{{username}}</text>
+    <text class="cell-badge">不可修改</text>
   </view>
-  <view class="field card">
-    <view class="label">角色</view>
-    <view class="readonly">{{roleLabel}}</view>
+
+  <!-- 角色：仅管理员/运营显示；普通用户没必要展示"普通用户" -->
+  <view wx:if="{{showRole}}" class="cell cell-readonly">
+    <text class="cell-label">角色</text>
+    <text class="cell-value">{{roleLabel}}</text>
+    <text class="cell-badge">不可修改</text>
   </view>
-  <view class="field card">
-    <view class="label">昵称</view>
-    <input class="input" value="{{nickname}}" maxlength="32" bindinput="onNickname" placeholder="请输入昵称" />
+
+  <!-- 昵称：可编辑，type=nickname 支持键盘上方一键用微信昵称 -->
+  <view class="cell cell-editable">
+    <text class="cell-label">昵称</text>
+    <input class="cell-input" type="nickname" value="{{nickname}}" maxlength="32"
+           bindinput="onNickname" bindblur="onNickname"
+           placeholder="点击填写（可一键用微信昵称）" placeholder-class="ph" />
+    <text class="cell-edit">✎</text>
   </view>
-  <view class="field card">
-    <view class="label">自我介绍</view>
-    <textarea class="textarea" value="{{intro}}" maxlength="200" bindinput="onIntro"
-              placeholder="介绍一下自己吧（留空则清空）" />
+
+  <!-- 自我介绍：多行文本，独立卡片走纵向布局 -->
+  <view class="cell cell-col">
+    <view class="cell-head">
+      <text class="cell-label">自我介绍</text>
+      <text class="cell-edit">✎</text>
+    </view>
+    <textarea class="cell-area" value="{{intro}}" maxlength="200" bindinput="onIntro"
+              placeholder="介绍一下自己吧（留空则清空）" placeholder-class="ph" />
     <view class="counter">{{intro.length}}/200</view>
   </view>
 

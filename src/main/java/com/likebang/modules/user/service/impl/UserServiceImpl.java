@@ -1,5 +1,6 @@
 package com.likebang.modules.user.service.impl;
 
+import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.digest.BCrypt;
 import cn.hutool.crypto.digest.DigestUtil;
@@ -53,6 +54,12 @@ import java.util.UUID;
 public class UserServiceImpl implements UserService {
 
     private static final String CLAIM_USER_ID = "userId";
+
+    /**
+     * 微信用户自动占位昵称前缀：微信自 2022-10 起 jscode2session/getUserProfile 均不再返回真实昵称，
+     * 首登只能给随机占位昵称（如“榜友3417”），真实昵称靠前端“头像昵称填写能力”在首次登录时引导补全。
+     */
+    private static final String WX_NICK_PREFIX = "榜友";
 
     private final SysUserMapper sysUserMapper;
     private final AuthProperties authProperties;
@@ -132,7 +139,10 @@ public class UserServiceImpl implements UserService {
 
         SysUser user = sysUserMapper.selectOne(
                 Wrappers.<SysUser>lambdaQuery().eq(SysUser::getOpenid, openid));
-        if (user == null) {
+        // 本次是否新建账号：作为“新用户首次登录”的唯一判据，前端据此只弹一次完善资料引导（可跳过）
+        boolean newUser = user == null;
+        if (newUser) {
+            // 新用户静默注册：未传昵称则落随机占位昵称（引导弹窗会再让用户改）
             user = registerByWechat(openid, request);
         }
         if (user.getStatus() == null || user.getStatus() != 1) {
@@ -146,7 +156,9 @@ public class UserServiceImpl implements UserService {
         sysUserMapper.updateById(update);
         user.setLastLoginAt(update.getLastLoginAt());
 
-        return buildLoginResponse(user);
+        LoginResponse response = buildLoginResponse(user);
+        response.setNewUser(newUser);
+        return response;
     }
 
     /**
@@ -204,8 +216,9 @@ public class UserServiceImpl implements UserService {
         SysUser user = new SysUser();
         user.setOpenid(openid);
         user.setUsername("wx_" + StrUtil.subPre(DigestUtil.md5Hex(openid), 24));
+        // 优先用前端已提交的昵称；否则给随机占位昵称，避免所有微信用户清一色“微信用户”互相混淆
         user.setNickname(StrUtil.isBlank(request.getNickname())
-                ? "微信用户" : StrUtil.subPre(request.getNickname().trim(), 32));
+                ? randomWxNickname() : StrUtil.subPre(request.getNickname().trim(), 32));
         user.setAvatarUrl(blankToNull(request.getAvatarUrl()));
         user.setPasswordHash(BCrypt.hashpw(UUID.randomUUID().toString()));
         user.setStatus(1);
@@ -380,5 +393,13 @@ public class UserServiceImpl implements UserService {
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value;
+    }
+
+    /**
+     * 生成随机占位昵称（如“榜友3417”）：昵称无唯一索引，靠随机数降低碰撞，
+     * 真正的展示名引导用户后续补全。
+     */
+    private String randomWxNickname() {
+        return WX_NICK_PREFIX + RandomUtil.randomNumbers(4);
     }
 }

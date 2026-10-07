@@ -5,6 +5,8 @@ const auth = require('../../utils/auth')
 Page({
   data: {
     username: '',
+    showUsername: false, // wx_ 技术串不展示（微信账号无真用户名），仅账密注册用户可见
+    showRole: false,     // 普通用户 role=0 无价值，仅管理员/运营可见
     roleLabel: '',
     nickname: '',
     intro: '',
@@ -16,7 +18,8 @@ Page({
 
   onLoad() {
     if (!auth.isLogin()) {
-      wx.navigateTo({ url: '/pages/login/login' })
+      // 未登录 → redirectTo 而非 navigateTo：不把 login 叠在栈里，避免登录成功 navigateBack 回 profile 后，保存 navigateBack 弹回 login 的错乱（登录导航 bug）
+      wx.redirectTo({ url: '/pages/login/login' })
       return
     }
     this.fill(auth.getUser())
@@ -27,33 +30,36 @@ Page({
   fill(u) {
     if (!u) return
     const nickname = u.nickname || ''
+    const username = u.username || ''
+    const role = u.role || 0
+    // 微信账号 username 约定为 "wx_" + md5前 24 位（参 UserServiceImpl.registerByWechat），对用户无意义，隐藏
+    const isWxAccount = username.indexOf('wx_') === 0
     this.setData({
-      username: u.username || '',
-      roleLabel: u.role === 1 ? '超级管理员' : (u.role === 2 ? '运营管理员' : '普通用户'),
+      username,
+      showUsername: !!username && !isWxAccount,
+      showRole: role > 0,
+      roleLabel: role === 1 ? '超级管理员' : (role === 2 ? '运营管理员' : '普通用户'),
       nickname,
       intro: u.intro || '',
       avatarUrl: u.avatarUrl || '',
       avatarPrev: util.resolveImage(u.avatarUrl),
-      avatarChar: (nickname || u.username || 'U').charAt(0).toUpperCase()
+      avatarChar: (nickname || username || 'U').charAt(0).toUpperCase()
     })
   },
 
   onNickname(e) { this.setData({ nickname: e.detail.value }) },
   onIntro(e) { this.setData({ intro: e.detail.value }) },
 
-  // 头像统一走站内上传，落库仅存相对路径，渲染时补 BASE 前缀（与榜单图片同源同规则）
-  chooseAvatar() {
-    wx.chooseMedia({
-      count: 1, mediaType: ['image'], sourceType: ['album', 'camera'], sizeType: ['compressed'],
-      success: (res) => {
-        const fp = res.tempFiles[0].tempFilePath
-        wx.showLoading({ title: '上传中' })
-        api.uploadImage(fp).then((path) => {
-          wx.hideLoading()
-          this.setData({ avatarUrl: path, avatarPrev: util.resolveImage(path) })
-        }).catch(() => wx.hideLoading())
-      }
-    })
+  // 微信「头像昵称填写能力」：button open-type=chooseAvatar 回调拿临时路径，
+  // 统一走站内上传落库为相对路径，渲染时补 BASE 前缀（与榜单图片同源同规则）
+  onChooseAvatar(e) {
+    const fp = e.detail.avatarUrl
+    if (!fp) return
+    wx.showLoading({ title: '上传中' })
+    api.uploadImage(fp).then((path) => {
+      wx.hideLoading()
+      this.setData({ avatarUrl: path, avatarPrev: util.resolveImage(path) })
+    }).catch(() => wx.hideLoading())
   },
 
   removeAvatar() {
@@ -75,7 +81,19 @@ Page({
     }).then((u) => {
       auth.setUser(u)
       wx.showToast({ title: '已保存', icon: 'success' })
-      setTimeout(() => wx.navigateBack(), 600)
+      setTimeout(() => this.goBackSafe(), 600)
     }).catch(() => {}).then(() => this.setData({ saving: false }))
+  },
+
+  // 安全回退：栈里上一跳不是 login 时 navigateBack；否则直接回首页（避免“保存后又弹回登录页”的错乱）
+  goBackSafe() {
+    const pages = getCurrentPages()
+    const prevRoute = pages.length >= 2 ? (pages[pages.length - 2].route || '') : ''
+    if (prevRoute && prevRoute.indexOf('pages/login') !== 0) {
+      wx.navigateBack()
+    } else {
+      // 上一跳是 login 或无可回退 → 一律 switchTab 回发现首页（tab 页安全）
+      wx.switchTab({ url: '/pages/index/index' })
+    }
   }
 })

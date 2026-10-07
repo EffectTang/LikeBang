@@ -56,3 +56,26 @@
     微信一键登录：新用户自动注册，老用户凭微信直接登录。
   </view>
 </view>
+
+<!-- 新用户首次微信登录后的一次性“完善资料”引导（可跳过） -->
+<view wx:if="{{showFill}}" class="fill-mask">
+  <view class="fill-card">
+    <view class="fill-title">完善你的资料</view>
+    <view class="fill-sub">设个昵称和头像会让你更容易被认出来（也可先跳过，稍后在“我的资料”修改）</view>
+
+    <!-- 头像：外层 view 定形保证正圆，内层透明 button 铺满承接 chooseAvatar（同 profile 页手法） -->
+    <view class="fill-avatar-box">
+      <image wx:if="{{fillAvatarPrev}}" class="fill-avatar-img" src="{{fillAvatarPrev}}" mode="aspectFill" />
+      <view wx:else class="fill-avatar-ph">＋</view>
+      <button class="fill-avatar-overlay" open-type="chooseAvatar" bindchooseavatar="onFillChooseAvatar"></button>
+    </view>
+    <view class="fill-avatar-tip">点击选头像（推荐用微信头像）</view>
+
+    <input class="fill-input" type="nickname" value="{{fillNickname}}" maxlength="32"
+           placeholder="点击填写昵称（可一键用微信昵称）" placeholder-class="fill-ph"
+           bindinput="onFillNickname" bindblur="onFillNickname" />
+
+    <button class="btn-primary fill-save" loading="{{fillSaving}}" bindtap="saveFill">保存并进入</button>
+    <view class="fill-skip" bindtap="skipFill">先跳过</view>
+  </view>
+</view>
