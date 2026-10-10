@@ -1,0 +1,222 @@
+.create-page {
+  padding: 24rpx;
+  padding-bottom: 60rpx;
+}
+.sec-header {
+  font-size: 30rpx;
+  font-weight: 600;
+  margin-bottom: 20rpx;
+}
+.field {
+  margin-bottom: 24rpx;
+}
+.field.row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.flabel {
+  font-size: 26rpx;
+  color: #606266;
+  margin-bottom: 12rpx;
+  display: block;
+}
+.field.row .flabel {
+  width: 140rpx;
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+.req {
+  color: #f56c6c;
+  margin-left: 6rpx;
+}
+.finput {
+  background: #f5f7fa;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 28rpx;
+  /* input 默认高约 54rpx，padding 吃掉 32rpx 后会把文字垂直裁切；显式给定高保证 placeholder 完整展示 */
+  height: 76rpx;
+  line-height: 44rpx;
+  box-sizing: border-box;
+}
+/* 下拉选择框：左文字右箭头，一眼可识别可点选 */
+.finput.picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  line-height: normal;
+}
+.picker-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.picker-text.ph {
+  color: #c0c4cc;
+}
+.picker-arrow {
+  flex-shrink: 0;
+  margin-left: 12rpx;
+  color: #909399;
+  font-size: 26rpx;
+}
+.field.row .finput {
+  flex: 1;
+}
+/* 名次上限步进器：− 数值 ＋，不沿用 .finput 的 line-height，原生 input 自适应垂直居中 */
+.stepper {
+  display: flex;
+  align-items: stretch;
+  height: 76rpx;
+  background: #f5f7fa;
+  border-radius: 12rpx;
+  overflow: hidden;
+}
+.step-btn {
+  width: 76rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  color: #606266;
+  background: #ebeef5;
+}
+.step-btn-hover {
+  background: #dcdfe6;
+}
+.step-num {
+  width: 120rpx;
+  /* 原生 input 垂直位置由 line-height 决定（不吃 flex 拉伸居中）：行高=框高才能真居中 */
+  height: 76rpx;
+  line-height: 76rpx;
+  text-align: center;
+  font-size: 30rpx;
+  color: #303133;
+}
+.step-hint {
+  flex-shrink: 0;
+}
+.finput.picker.sm {
+  max-width: none;
+  flex: 1;
+}
+.ftextarea {
+  background: #f5f7fa;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 28rpx;
+  width: 100%;
+  box-sizing: border-box;
+  height: 120rpx;
+  margin-bottom: 16rpx;
+}
+.hint {
+  background: #ecf5ff;
+  color: #409eff;
+  font-size: 24rpx;
+  border-radius: 12rpx;
+  padding: 14rpx 20rpx;
+  margin-top: 8rpx;
+}
+
+/* 排名项块 */
+.item-block {
+  border: 1rpx solid #ebeef5;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  margin-bottom: 20rpx;
+}
+.item-block .finput,
+.item-block .ftextarea {
+  margin-bottom: 16rpx;
+  width: 100%;
+  box-sizing: border-box;
+}
+.item-block-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+.ib-idx {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #409eff;
+}
+.ib-del {
+  font-size: 24rpx;
+  color: #f56c6c;
+}
+.src-row {
+  margin-bottom: 16rpx;
+}
+.img-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.img-pick {
+  color: #409eff;
+  font-size: 24rpx;
+  border: 1rpx dashed #409eff;
+  border-radius: 20rpx;
+  padding: 8rpx 22rpx;
+}
+.prev-thumb {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 8rpx;
+}
+.add-item-btn {
+  width: 100%;
+  margin-top: 8rpx;
+}
+
+.submit {
+  margin-top: 32rpx;
+  height: 88rpx;
+  width: 100%;
+  box-sizing: border-box;
+  /* 原生 button 默认 padding/line-height 会干扰居中，改用 flex 强制水平+垂直居中 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: normal;
+}
+
+/* 未登录引导态：替代自动跳登录页（tab 页自动跳转会形成“返回→再弹登录”死循环） */
+.login-guide {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 120rpx 40rpx;
+  text-align: center;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+.lg-icon {
+  font-size: 120rpx;
+}
+.lg-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #303133;
+  margin-top: 24rpx;
+}
+.lg-sub {
+  font-size: 26rpx;
+  color: #909399;
+  margin-top: 12rpx;
+}
+.lg-btn {
+  margin-top: 48rpx;
+  height: 88rpx;
+  width: 100%;
+  box-sizing: border-box;
+  /* button 文字居中用 flex，不吃基础库默认 line-height/padding */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}

@@ -1,0 +1,98 @@
+<view class="item-page" wx:if="{{item}}">
+  <!-- 主体 -->
+  <view class="main-card">
+    <view class="main-head">
+      <view class="main-left">
+        <image wx:if="{{item.thumb}}" class="main-thumb" src="{{item.thumb}}" mode="aspectFill"
+               data-url="{{item.thumb}}" bindtap="preview" />
+        <view wx:else class="main-thumb ph">🏆</view>
+      </view>
+      <view class="main-info flex-1">
+        <view class="main-name">
+          <text class="rank-badge">{{item.currentRank}}</text>{{item.name}}
+        </view>
+        <view class="main-source" wx:if="{{item.sourceName}}">——《{{item.sourceName}}》</view>
+        <view class="main-source" wx:if="{{item.sourceDesc}}">{{item.sourceDesc}}</view>
+        <view class="main-desc" wx:if="{{item.description}}">{{item.description}}</view>
+        <view class="main-meta">
+          <text>@{{item.creatorNickname}}</text>
+          <text>{{item.createdAt}}</text>
+        </view>
+      </view>
+    </view>
+    <view class="main-vote">
+      <button class="vote big {{item.myVoteType === 1 ? 'on-agree' : ''}}" bindtap="voteItem">👍 认同 {{item.agreeCount}}</button>
+      <button class="vote big {{item.myVoteType === -1 ? 'on-oppose' : ''}}" bindtap="voteItemOppose">👎 反对 {{item.opposeCount}}</button>
+    </view>
+  </view>
+
+  <!-- 发表理由 -->
+  <view class="publish card">
+    <textarea class="pub-input" placeholder="说说你的理由，支持 1000 字…" maxlength="1000"
+              value="{{draft}}" bindinput="onDraftInput" />
+    <view class="pub-tools">
+      <view class="img-pick" bindtap="pickDraftImage">📷 配图</view>
+      <view class="img-prev" wx:if="{{draftImagePrev}}">
+        <image class="prev-thumb" src="{{draftImagePrev}}" mode="aspectFill" />
+        <text class="prev-del" bindtap="clearDraftImage">×</text>
+      </view>
+      <button class="btn-primary pub-btn" loading="{{publishing}}" bindtap="submitReason">发表理由</button>
+    </view>
+  </view>
+
+  <view class="section-head">
+    <text class="section-title">全部理由（{{total}}）</text>
+    <text class="section-hint">按认同数从高到低</text>
+  </view>
+
+  <!-- 理由流 -->
+  <view wx:for="{{reasons}}" wx:for-item="r" wx:key="id" class="reason-card card">
+    <view class="rc-line">
+      <text class="rc-floor">{{index + 1}}</text>
+      <view class="rc-content flex-1">{{r.content}}</view>
+    </view>
+    <image wx:if="{{r.image}}" class="rc-image" src="{{r.image}}" mode="aspectFill"
+           data-url="{{r.image}}" bindtap="preview" />
+    <view class="rc-foot">
+      <text class="muted">@{{r.creatorNickname}} · {{r.createdAt}}</text>
+    </view>
+    <view class="rc-ops">
+      <view class="rv {{r.myVoteType === 1 ? 'on-agree' : ''}}" data-idx="{{index}}" data-type="1" bindtap="voteReason">👍 {{r.agreeCount}}</view>
+      <view class="rv {{r.myVoteType === -1 ? 'on-oppose' : ''}}" data-idx="{{index}}" data-type="-1" bindtap="voteReason">👎 {{r.opposeCount}}</view>
+      <view class="rv" data-rid="{{r.id}}" bindtap="toggleComments">
+        {{commentsMap[r.id].visible ? '收起回复' : ('查看回复 ' + r.commentCount)}}
+      </view>
+      <view class="rv danger" wx:if="{{r.canEdit}}" data-idx="{{index}}" bindtap="deleteReason">删除</view>
+    </view>
+
+    <!-- 评论（楼中楼） -->
+    <view class="comments" wx:if="{{commentsMap[r.id].visible}}">
+      <view wx:for="{{commentsMap[r.id].list}}" wx:for-item="c" wx:key="id" class="comment">
+        <text class="c-author">@{{c.creatorNickname}}</text>
+        <text class="c-content">{{c.content}}</text>
+        <text class="c-time">{{c.createdAt}}</text>
+        <text class="c-del" wx:if="{{c.canDelete}}" data-rid="{{r.id}}" data-cid="{{c.id}}" bindtap="deleteComment">删除</text>
+      </view>
+      <view class="comment-more" wx:if="{{commentsMap[r.id].list.length < commentsMap[r.id].total}}">
+        <text data-rid="{{r.id}}" bindtap="loadMoreComments">查看更多回复</text>
+      </view>
+      <view class="comment-input">
+        <input class="ci-field" placeholder="回复这条理由…" value="{{commentsMap[r.id].draft}}"
+               data-rid="{{r.id}}" bindinput="onCommentInput" />
+        <button class="btn-primary ci-btn" size="mini" loading="{{commentsMap[r.id].submitting}}"
+                data-rid="{{r.id}}" bindtap="submitComment">回复</button>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading-tip">加载中…</view>
+  <view wx:elif="{{!hasMore && reasons.length > 0}}" class="loading-tip">没有更多理由了</view>
+  <view wx:if="{{!loading && reasons.length === 0}}" class="empty">还没有理由，来发布第一条吧</view>
+</view>
+
+<view wx:else class="loading-tip">加载中…</view>
+
+<!-- 预览 -->
+<view class="preview" wx:if="{{previewUrl}}" bindtap="closePreview">
+  <image src="{{previewUrl}}" mode="widthFix" />
+</view>

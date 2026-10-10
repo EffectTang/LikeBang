@@ -1,0 +1,97 @@
+<view class="create-page">
+  <!-- 未登录引导态：tab 页不自动跳登录页（会形成返回死循环），改为页内引导，用户可自由切其他 tab 离开 -->
+  <view wx:if="{{notLogin}}" class="login-guide">
+    <view class="lg-icon">🏆</view>
+    <view class="lg-title">登录后即可发起榜单</view>
+    <view class="lg-sub">微信一键登录，新用户自动注册</view>
+    <button class="btn-primary lg-btn" bindtap="goLogin">去登录</button>
+  </view>
+
+  <block wx:else>
+  <!-- 基本信息 -->
+  <view class="card">
+    <view class="sec-header">基本信息</view>
+    <view class="field">
+      <text class="flabel">标题<text class="req">*</text></text>
+      <input class="finput" placeholder="你的观点榜标题" value="{{title}}" data-key="title" bindinput="onField" maxlength="100" />
+    </view>
+    <view class="field">
+      <text class="flabel">描述</text>
+      <textarea class="ftextarea" placeholder="榜单简介（可选）" value="{{description}}" data-key="description" bindinput="onField" maxlength="1000" />
+    </view>
+    <view class="field row">
+      <text class="flabel">分类</text>
+      <picker range="{{catNames}}" value="{{catIndex}}" bindchange="onCatChange">
+        <view class="finput picker">
+          <text class="picker-text {{catNames[catIndex] ? '' : 'ph'}}">{{catNames[catIndex] || '请选择分类'}}</text>
+          <text class="picker-arrow">▾</text>
+        </view>
+      </picker>
+    </view>
+    <view class="field row">
+      <text class="flabel">名次上限</text>
+      <view class="stepper">
+        <view class="step-btn" hover-class="step-btn-hover" data-step="-1" bindtap="stepLimit">−</view>
+        <input class="step-num" type="number" value="{{itemLimit}}" bindinput="onLimit" bindblur="onLimitBlur" />
+        <view class="step-btn" hover-class="step-btn-hover" data-step="1" bindtap="stepLimit">＋</view>
+      </view>
+      <text class="muted step-hint">{{limitHint}}</text>
+    </view>
+    <view class="field row">
+      <text class="flabel">可见性</text>
+      <picker range="{{visLabels}}" value="{{visIndex}}" bindchange="onVisChange">
+        <view class="finput picker">
+          <text class="picker-text {{visLabels[visIndex] ? '' : 'ph'}}">{{visLabels[visIndex] || '请选择可见性'}}</text>
+          <text class="picker-arrow">▾</text>
+        </view>
+      </picker>
+    </view>
+    <view class="field row">
+      <text class="flabel">封面</text>
+      <view class="img-pick" bindtap="pickCover">选择封面</view>
+      <image wx:if="{{coverPrev}}" class="prev-thumb" src="{{coverPrev}}" mode="aspectFill" />
+    </view>
+    <view class="hint" wx:if="{{sourceOn}}">当前分类已开启「来源」填写，可在下方每项补充出处。</view>
+  </view>
+
+  <!-- 排名项 -->
+  <view class="card">
+    <view class="sec-header">
+      <text>排名项（至少 2 项，按顺序为初始名次）</text>
+    </view>
+
+    <view wx:for="{{items}}" wx:for-item="it" wx:for-index="idx" wx:key="idx" class="item-block">
+      <view class="item-block-head">
+        <text class="ib-idx">第 {{idx + 1}} 名</text>
+        <text class="ib-del" wx:if="{{items.length > 2}}" data-idx="{{idx}}" bindtap="removeItem">删除</text>
+      </view>
+
+      <input class="finput" placeholder="名称（必填）" value="{{it.name}}" data-idx="{{idx}}" data-key="name" bindinput="onItemField" maxlength="200" />
+
+      <block wx:if="{{sourceOn}}">
+        <view class="src-row">
+          <picker range="{{srcLabels}}" value="{{it.srcIndex}}" data-idx="{{idx}}" bindchange="onItemSrcChange">
+            <view class="finput picker sm">
+              <text class="picker-text">来源类型：{{srcLabels[it.srcIndex]}}</text>
+              <text class="picker-arrow">▾</text>
+            </view>
+          </picker>
+        </view>
+        <input class="finput" placeholder="来源作品名（如 让子弹飞，选填）" value="{{it.sourceName}}" data-idx="{{idx}}" data-key="sourceName" bindinput="onItemField" maxlength="100" />
+        <input class="finput" placeholder="来源补充说明（场景/章节，选填）" value="{{it.sourceDesc}}" data-idx="{{idx}}" data-key="sourceDesc" bindinput="onItemField" maxlength="500" />
+      </block>
+
+      <textarea class="ftextarea" placeholder="排名项描述（可选）" value="{{it.description}}" data-idx="{{idx}}" data-key="description" bindinput="onItemField" maxlength="1000" />
+      <textarea class="ftextarea" placeholder="你的推荐理由（可选）" value="{{it.reason}}" data-idx="{{idx}}" data-key="reason" bindinput="onItemField" maxlength="1000" />
+      <view class="img-row">
+        <view class="img-pick" data-idx="{{idx}}" bindtap="pickItemImage">📷 配图</view>
+        <image wx:if="{{it.imagePrev}}" class="prev-thumb" src="{{it.imagePrev}}" mode="aspectFill" />
+      </view>
+    </view>
+
+    <button class="btn-plain add-item-btn" bindtap="addItem">＋ 添加排名项</button>
+  </view>
+
+  <button class="btn-primary submit" loading="{{submitting}}" bindtap="submit">发布榜单</button>
+  </block>
+</view>

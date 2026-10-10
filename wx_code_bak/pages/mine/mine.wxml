@@ -1,0 +1,75 @@
+<view class="mine-page">
+  <!-- ① 顶部 Hero 卡：渐变突出「我是谁」，整卡点击进入资料编辑（正向高频动作，主动线） -->
+  <view class="hero" bindtap="goProfile">
+    <view class="hero-edit">编辑 ›</view>
+    <view class="hero-main">
+      <image wx:if="{{avatarFull}}" class="hero-avatar img" src="{{avatarFull}}" mode="aspectFill" />
+      <view wx:else class="hero-avatar">{{avatarChar || '👤'}}</view>
+      <view class="hero-info flex-1">
+        <block wx:if="{{isLogin}}">
+          <view class="hero-name-row">
+            <text class="hero-name ellipsis">{{user.nickname || user.username}}</text>
+            <text wx:if="{{showRole}}" class="hero-role">{{roleLabel}}</text>
+          </view>
+          <view class="hero-handle">@{{user.username}}</view>
+          <view wx:if="{{hasIntro}}" class="hero-intro ellipsis-2">{{user.intro}}</view>
+          <view wx:else class="hero-intro cta">✍ 添加个性签名，让大家认识你 ›</view>
+        </block>
+        <block wx:else>
+          <view class="hero-name-row"><text class="hero-name">未登录</text></view>
+          <view class="hero-handle">登录后即可发起榜单、投票、发理由</view>
+        </block>
+      </view>
+    </view>
+    <button wx:if="{{!isLogin}}" class="btn-primary hero-login" size="mini" catchtap="goLogin">登录 / 注册</button>
+  </view>
+
+  <!-- ② 账号信息卡：补齐个人信息展示（脱敏只读，与「编辑/退出」逻辑隔离） -->
+  <view wx:if="{{isLogin}}" class="acct card">
+    <view class="sec-title acct-title">账号信息</view>
+    <view class="cell">
+      <text class="cell-label">邮箱</text>
+      <text class="cell-value">{{emailMask || '未绑定'}}</text>
+    </view>
+    <view class="cell">
+      <text class="cell-label">手机号</text>
+      <text class="cell-value">{{phoneMask || '未绑定'}}</text>
+    </view>
+    <view class="cell">
+      <text class="cell-label">加入时间</text>
+      <text class="cell-value">{{joinDate || '—'}}</text>
+    </view>
+    <view class="cell">
+      <text class="cell-label">最后登录</text>
+      <text class="cell-value">{{lastLoginDate || '—'}}</text>
+    </view>
+  </view>
+
+  <!-- 发起入口已上到底部 tab 栏，页内大按钮移除避免双入口稀释 -->
+
+  <!-- ③ 我的榜单 -->
+  <view class="sec-title">我的榜单（{{total}}）</view>
+  <view wx:for="{{list}}" wx:key="id" class="my-card card" data-id="{{item.id}}" bindtap="goDetail">
+    <image wx:if="{{item.cover}}" class="my-cover" src="{{item.cover}}" mode="aspectFill" />
+    <view wx:else class="my-cover ph">🏆</view>
+    <view class="my-body flex-1">
+      <view class="my-title">
+        <text class="ellipsis flex-1">{{item.title}}</text>
+        <text class="status s{{item.status}}">{{item.statusLabel}}</text>
+      </view>
+      <view class="my-meta">
+        <text class="tag" wx:if="{{item.categoryName}}">{{item.categoryName}}</text>
+        <text>🏆 Top {{item.itemLimit}}</text>
+        <text>📋 {{item.itemCount}} 项</text>
+        <text>👁 {{item.viewCount}}</text>
+      </view>
+    </view>
+    <view class="my-del" catchtap="deleteRanking" data-id="{{item.id}}">删除</view>
+  </view>
+
+  <view wx:if="{{isLogin && loading}}" class="loading-tip">加载中…</view>
+  <view wx:if="{{isLogin && !loading && list.length === 0}}" class="empty">你还没有榜单，从下方「发起榜单」创建第一个吧</view>
+
+  <!-- ④ 退出登录：独立整行、低视觉权重，与「编辑」物理隔离，杜绝误触 -->
+  <view wx:if="{{isLogin}}" class="logout-bar" bindtap="logout">退出登录</view>
+</view>

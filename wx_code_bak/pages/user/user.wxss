@@ -1,0 +1,107 @@
+.user-page {
+  padding: 24rpx;
+}
+
+/* 资料头部 */
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 32rpx 24rpx;
+}
+.avatar-box {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #ecf0f5;
+  flex-shrink: 0;
+}
+.avatar {
+  width: 128rpx;
+  height: 128rpx;
+}
+.avatar.ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 56rpx;
+  color: #a8b3c5;
+}
+.profile-name {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #303133;
+}
+.profile-join {
+  font-size: 24rpx;
+  color: #909399;
+  margin-top: 8rpx;
+}
+.profile-intro {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-top: 20rpx;
+  color: #606266;
+  font-size: 28rpx;
+  line-height: 1.6;
+}
+
+.sec-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #303133;
+  margin: 32rpx 0 20rpx;
+}
+
+/* 公开榜单卡片（样式对齐发现页） */
+.rank-card {
+  background: #fff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+.card-cover {
+  display: block;
+  width: 100%;
+  height: 260rpx;
+}
+.cover-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+  font-size: 72rpx;
+}
+.card-body {
+  padding: 20rpx 24rpx 24rpx;
+}
+.card-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #303133;
+}
+.card-desc {
+  color: #909399;
+  font-size: 26rpx;
+  margin: 8rpx 0 16rpx;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card-meta {
+  display: flex;
+  gap: 28rpx;
+  color: #606266;
+  font-size: 24rpx;
+}
+.card-foot {
+  display: flex;
+  align-items: center;
+  margin-top: 16rpx;
+}

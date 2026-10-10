@@ -1,0 +1,254 @@
+.item-page {
+  padding: 24rpx;
+}
+
+/* 主体 */
+.main-card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+}
+.main-head {
+  display: flex;
+  gap: 20rpx;
+}
+.main-thumb {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 12rpx;
+}
+.main-thumb.ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f7fa;
+  font-size: 60rpx;
+}
+.main-name {
+  font-size: 34rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.rank-badge {
+  display: inline-flex;
+  width: 44rpx;
+  height: 44rpx;
+  line-height: 44rpx;
+  text-align: center;
+  border-radius: 50%;
+  background: #409eff;
+  color: #fff;
+  font-size: 24rpx;
+}
+.main-source {
+  color: #909399;
+  font-size: 24rpx;
+  margin-top: 8rpx;
+}
+.main-desc {
+  color: #606266;
+  font-size: 27rpx;
+  margin-top: 10rpx;
+}
+.main-meta {
+  display: flex;
+  gap: 20rpx;
+  color: #909399;
+  font-size: 22rpx;
+  margin-top: 12rpx;
+}
+.main-vote {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 20rpx;
+}
+.vote.big {
+  flex: 1;
+  border-radius: 40rpx;
+}
+.on-agree {
+  background: #67c23a !important;
+  color: #fff !important;
+}
+.on-oppose {
+  background: #f56c6c !important;
+  color: #fff !important;
+}
+
+/* 发表理由 */
+.publish {
+  margin-bottom: 24rpx;
+}
+.pub-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: #f5f7fa;
+  border-radius: 12rpx;
+  padding: 16rpx;
+  height: 140rpx;
+  font-size: 28rpx;
+}
+.pub-tools {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-top: 16rpx;
+}
+.img-pick {
+  color: #409eff;
+  font-size: 24rpx;
+  border: 1rpx dashed #409eff;
+  border-radius: 20rpx;
+  padding: 6rpx 18rpx;
+}
+.img-prev {
+  position: relative;
+}
+.prev-thumb {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 8rpx;
+}
+.prev-del {
+  position: absolute;
+  top: -12rpx;
+  right: -12rpx;
+  width: 32rpx;
+  height: 32rpx;
+  line-height: 28rpx;
+  text-align: center;
+  background: #f56c6c;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 24rpx;
+}
+.pub-btn {
+  margin-left: auto;
+}
+
+/* 区块标题 */
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 8rpx 4rpx 16rpx;
+}
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+.section-hint {
+  font-size: 22rpx;
+  color: #c0c4cc;
+}
+
+/* 理由卡 */
+.reason-card {
+  margin-bottom: 20rpx;
+}
+.rc-line {
+  display: flex;
+  gap: 16rpx;
+}
+.rc-floor {
+  width: 44rpx;
+  height: 44rpx;
+  line-height: 44rpx;
+  text-align: center;
+  border-radius: 50%;
+  background: #ecf5ff;
+  color: #409eff;
+  font-size: 24rpx;
+  flex-shrink: 0;
+}
+.rc-content {
+  font-size: 28rpx;
+  line-height: 1.6;
+}
+.rc-image {
+  width: 260rpx;
+  height: 200rpx;
+  border-radius: 8rpx;
+  margin: 12rpx 0 0 60rpx;
+}
+.rc-foot {
+  margin: 10rpx 0 0 60rpx;
+}
+.rc-ops {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-top: 14rpx;
+  padding-top: 12rpx;
+  border-top: 1rpx solid #f5f7fa;
+}
+.rv {
+  font-size: 24rpx;
+  color: #606266;
+  background: #f5f7fa;
+  border-radius: 24rpx;
+  padding: 6rpx 18rpx;
+}
+.rv.on-agree { color: #fff; background: #67c23a; }
+.rv.on-oppose { color: #fff; background: #f56c6c; }
+.rv.danger { color: #f56c6c; }
+
+/* 评论 */
+.comments {
+  margin: 16rpx 0 0 60rpx;
+  background: #f7f9fc;
+  border-radius: 12rpx;
+  padding: 16rpx;
+}
+.comment {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12rpx;
+  padding: 8rpx 0;
+  border-bottom: 1rpx solid #eef1f6;
+  font-size: 24rpx;
+}
+.c-author { color: #409eff; }
+.c-content { color: #303133; flex: 1; }
+.c-time { color: #c0c4cc; font-size: 20rpx; }
+.c-del { color: #f56c6c; font-size: 22rpx; }
+.comment-more {
+  text-align: center;
+  color: #409eff;
+  font-size: 22rpx;
+  padding: 10rpx 0;
+}
+.comment-input {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 12rpx;
+}
+.ci-field {
+  flex: 1;
+  background: #fff;
+  border-radius: 30rpx;
+  padding: 10rpx 24rpx;
+  font-size: 24rpx;
+}
+.ci-btn {
+  flex-shrink: 0;
+}
+
+/* 预览 */
+.preview {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.preview image {
+  width: 100%;
+}
