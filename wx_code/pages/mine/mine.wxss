@@ -118,6 +118,12 @@
   margin: 8rpx 4rpx 16rpx;
 }
 
+.sec-hint {
+  color: #c0c4cc;
+  font-size: 22rpx;
+  margin: -8rpx 4rpx 16rpx;
+}
+
 .my-card {
   display: flex;
   align-items: center;
@@ -148,15 +154,6 @@
   font-size: 30rpx;
   font-weight: 600;
 }
-.status {
-  font-size: 20rpx;
-  padding: 2rpx 12rpx;
-  border-radius: 16rpx;
-  flex-shrink: 0;
-}
-.status.s1 { background: #e8f6ed; color: #67c23a; }
-.status.s0 { background: #f0f2f5; color: #909399; }
-.status.s2 { background: #fef0f0; color: #f56c6c; }
 .my-meta {
   display: flex;
   flex-wrap: wrap;
@@ -164,12 +161,6 @@
   color: #909399;
   font-size: 22rpx;
   margin-top: 10rpx;
-}
-.my-del {
-  color: #f56c6c;
-  font-size: 24rpx;
-  padding: 10rpx;
-  flex-shrink: 0;
 }
 
 /* ④ 退出登录：margin-top:auto 在 flex 列中钉到内容区底部（tabBar 正上方）；与顶部编辑物理隔离 */

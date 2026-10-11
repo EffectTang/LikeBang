@@ -15,19 +15,26 @@
         <view class="main-source" wx:if="{{item.sourceDesc}}">{{item.sourceDesc}}</view>
         <view class="main-desc" wx:if="{{item.description}}">{{item.description}}</view>
         <view class="main-meta">
-          <text>@{{item.creatorNickname}}</text>
+          <!-- UGC 整改期间隐藏排名项创建人 @昵称，见 4.21 -->
+          <text wx:if="{{publishOn}}">@{{item.creatorNickname}}</text>
           <text>{{item.createdAt}}</text>
         </view>
       </view>
     </view>
     <view class="main-vote">
-      <button class="vote big {{item.myVoteType === 1 ? 'on-agree' : ''}}" bindtap="voteItem">👍 认同 {{item.agreeCount}}</button>
-      <button class="vote big {{item.myVoteType === -1 ? 'on-oppose' : ''}}" bindtap="voteItemOppose">👎 反对 {{item.opposeCount}}</button>
+      <view class="vote-seg">
+        <view class="vseg agree {{item.myVoteType === 1 ? 'on' : ''}}" bindtap="voteItem">
+          <text class="vseg-ico">▲</text><text class="vseg-txt">认同</text><text class="vseg-num">{{item.agreeCount}}</text>
+        </view>
+        <view class="vseg oppose {{item.myVoteType === -1 ? 'on' : ''}}" bindtap="voteItemOppose">
+          <text class="vseg-ico">▼</text><text class="vseg-txt">反对</text><text class="vseg-num">{{item.opposeCount}}</text>
+        </view>
+      </view>
     </view>
   </view>
 
-  <!-- 发表理由 -->
-  <view class="publish card">
+  <!-- 发表理由（个人主体 UGC 下架：理由只读，发布框整体不渲染，见 config.UGC_ENABLED） -->
+  <view class="publish card" wx:if="{{publishOn}}">
     <textarea class="pub-input" placeholder="说说你的理由，支持 1000 字…" maxlength="1000"
               value="{{draft}}" bindinput="onDraftInput" />
     <view class="pub-tools">
@@ -54,12 +61,20 @@
     <image wx:if="{{r.image}}" class="rc-image" src="{{r.image}}" mode="aspectFill"
            data-url="{{r.image}}" bindtap="preview" />
     <view class="rc-foot">
-      <text class="muted">@{{r.creatorNickname}} · {{r.createdAt}}</text>
+      <!-- UGC 整改期间隐藏理由作者 @昵称，仅保留时间，见 4.21 -->
+      <text class="muted">{{publishOn ? '@' + r.creatorNickname + ' · ' : ''}}{{r.createdAt}}</text>
     </view>
     <view class="rc-ops">
-      <view class="rv {{r.myVoteType === 1 ? 'on-agree' : ''}}" data-idx="{{index}}" data-type="1" bindtap="voteReason">👍 {{r.agreeCount}}</view>
-      <view class="rv {{r.myVoteType === -1 ? 'on-oppose' : ''}}" data-idx="{{index}}" data-type="-1" bindtap="voteReason">👎 {{r.opposeCount}}</view>
-      <view class="rv" data-rid="{{r.id}}" bindtap="toggleComments">
+      <view class="vote-seg sm">
+        <view class="vseg agree {{r.myVoteType === 1 ? 'on' : ''}}" data-idx="{{index}}" data-type="1" bindtap="voteReason">
+          <text class="vseg-ico">▲</text><text class="vseg-num">{{r.agreeCount}}</text>
+        </view>
+        <view class="vseg oppose {{r.myVoteType === -1 ? 'on' : ''}}" data-idx="{{index}}" data-type="-1" bindtap="voteReason">
+          <text class="vseg-ico">▼</text><text class="vseg-num">{{r.opposeCount}}</text>
+        </view>
+      </view>
+      <!-- UGC 整改期间隐藏「查看回复」入口（楼中楼评论不再对外展开），见 4.21 -->
+      <view class="rv" wx:if="{{publishOn}}" data-rid="{{r.id}}" bindtap="toggleComments">
         {{commentsMap[r.id].visible ? '收起回复' : ('查看回复 ' + r.commentCount)}}
       </view>
       <view class="rv danger" wx:if="{{r.canEdit}}" data-idx="{{index}}" bindtap="deleteReason">删除</view>
@@ -68,7 +83,8 @@
     <!-- 评论（楼中楼） -->
     <view class="comments" wx:if="{{commentsMap[r.id].visible}}">
       <view wx:for="{{commentsMap[r.id].list}}" wx:for-item="c" wx:key="id" class="comment">
-        <text class="c-author">@{{c.creatorNickname}}</text>
+        <!-- UGC 整改期间隐藏评论人 @昵称，评论正文与时间仍可读，见 4.21 -->
+        <text class="c-author" wx:if="{{publishOn}}">@{{c.creatorNickname}}</text>
         <text class="c-content">{{c.content}}</text>
         <text class="c-time">{{c.createdAt}}</text>
         <text class="c-del" wx:if="{{c.canDelete}}" data-rid="{{r.id}}" data-cid="{{c.id}}" bindtap="deleteComment">删除</text>
@@ -76,7 +92,8 @@
       <view class="comment-more" wx:if="{{commentsMap[r.id].list.length < commentsMap[r.id].total}}">
         <text data-rid="{{r.id}}" bindtap="loadMoreComments">查看更多回复</text>
       </view>
-      <view class="comment-input">
+      <!-- 回复输入框（个人主体 UGC 下架：评论只读展示，不可再发新回复） -->
+      <view class="comment-input" wx:if="{{publishOn}}">
         <input class="ci-field" placeholder="回复这条理由…" value="{{commentsMap[r.id].draft}}"
                data-rid="{{r.id}}" bindinput="onCommentInput" />
         <button class="btn-primary ci-btn" size="mini" loading="{{commentsMap[r.id].submitting}}"
@@ -87,7 +104,7 @@
 
   <view wx:if="{{loading}}" class="loading-tip">加载中…</view>
   <view wx:elif="{{!hasMore && reasons.length > 0}}" class="loading-tip">没有更多理由了</view>
-  <view wx:if="{{!loading && reasons.length === 0}}" class="empty">还没有理由，来发布第一条吧</view>
+  <view wx:if="{{!loading && reasons.length === 0}}" class="empty">暂无理由</view>
 </view>
 
 <view wx:else class="loading-tip">加载中…</view>

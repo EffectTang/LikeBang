@@ -23,6 +23,8 @@ module.exports = {
   // ---- 榜单浏览 / 详情 ----
   listPublicRankings: (params) => http.get('/rankings/public', params),
   listMyRankings: (params) => http.get('/rankings/mine', params),
+  // 我的收藏（分页，按收藏时间倒序，仅未删除榜单）
+  listBookmarkedRankings: (params) => http.get('/rankings/bookmarked-by-me', params),
   // 某用户的公开榜单（他人主页，分页，仅已发布+公开）
   listUserRankings: (userId, params) => http.get(`/rankings/by-user/${userId}`, params),
   getRankingDetail: (id) => http.get(`/rankings/${id}`),
@@ -52,6 +54,11 @@ module.exports = {
   cancelItemVote: (id, itemId) => http.del(`/rankings/${id}/items/${itemId}/vote`),
   voteReason: (reasonId, voteType) => http.post(`/rankings/reasons/${reasonId}/vote`, { voteType }),
   cancelReasonVote: (reasonId) => http.del(`/rankings/reasons/${reasonId}/vote`),
+
+  // ---- 收藏（个人主体下属用户个人行为、不外显内容，不属 UGC 生产，整改后仍可用）----
+  // 重复收藏/未收藏时取消均由后端幂等成功，返回收藏后状态（true/false）
+  bookmark: (id) => http.post(`/rankings/${id}/bookmark`),
+  cancelBookmark: (id) => http.del(`/rankings/${id}/bookmark`),
 
   // ---- 理由评论（楼中楼）----
   addReasonComment: (reasonId, content) => http.post(`/rankings/reasons/${reasonId}/comments`, { content }),

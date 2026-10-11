@@ -1,14 +1,16 @@
 <view class="profile-page">
   <!-- 头像：外层 view 定形（正圆 200×200），内层透明 button 铺满承接 open-type=chooseAvatar 点击。
-       直接用 <button> 作容器会被小程序 button 默认 min-height/width:100% 撑成椭圆，故用叠加法。 -->
+       直接用 <button> 作容器会被小程序 button 默认 min-height/width:100% 撑成椭圆，故用叠加法。
+       个人主体 UGC 整改：头像上传下架（overlay 不渲染即不可点），仅保留昵称填写，见 config.UGC_ENABLED。 -->
   <view class="avatar-wrap">
     <view class="avatar-box">
       <image wx:if="{{avatarPrev}}" class="avatar" src="{{avatarPrev}}" mode="aspectFill" />
       <view wx:else class="avatar-ph">{{avatarChar}}</view>
-      <button class="avatar-overlay" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar"></button>
+      <button wx:if="{{uploadOn}}" class="avatar-overlay" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar"></button>
     </view>
-    <text class="avatar-tip">点击头像更换（可选用微信头像）</text>
-    <text wx:if="{{avatarPrev}}" class="avatar-remove" bindtap="removeAvatar">移除头像</text>
+    <text class="avatar-tip" wx:if="{{uploadOn}}">点击头像更换（可选用微信头像）</text>
+    <text class="avatar-tip" wx:else>头像由网页端维护</text>
+    <text wx:if="{{uploadOn && avatarPrev}}" class="avatar-remove" bindtap="removeAvatar">移除头像</text>
   </view>
 
   <!-- 用户名：仅账密注册用户显示；wx_ 技术串隐藏 -->
@@ -34,8 +36,9 @@
     <text class="cell-edit">✎</text>
   </view>
 
-  <!-- 自我介绍：多行文本，独立卡片走纵向布局 -->
-  <view class="cell cell-col">
+  <!-- 自我介绍：多行文本，独立卡片走纵向布局。
+       个人主体 UGC 整改：简介输入框下架，改为只读展示（与头像同一开关） -->
+  <view class="cell cell-col" wx:if="{{uploadOn}}">
     <view class="cell-head">
       <text class="cell-label">自我介绍</text>
       <text class="cell-edit">✎</text>
@@ -43,6 +46,13 @@
     <textarea class="cell-area" value="{{intro}}" maxlength="200" bindinput="onIntro"
               placeholder="介绍一下自己吧（留空则清空）" placeholder-class="ph" />
     <view class="counter">{{intro.length}}/200</view>
+  </view>
+  <view class="cell cell-col cell-readonly" wx:else>
+    <view class="cell-head">
+      <text class="cell-label">自我介绍</text>
+      <text class="cell-badge">不可修改</text>
+    </view>
+    <text class="cell-value">{{intro || '未填写（由网页端维护）'}}</text>
   </view>
 
   <button class="save-btn" loading="{{saving}}" bindtap="save">保存</button>

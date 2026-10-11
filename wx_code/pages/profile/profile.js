@@ -13,7 +13,8 @@ Page({
     avatarUrl: '',     // 提交用原始值（相对路径 /uploads/xxx 或 http(s) 外链），空串=清空
     avatarPrev: '',    // 展示用完整地址
     avatarChar: 'U',
-    saving: false
+    saving: false,
+    uploadOn: util.ugcEnabled()   // 头像/简介可编辑性开关（个人主体 UGC 整改下架，仅留昵称，见 config.UGC_ENABLED）
   },
 
   onLoad() {
@@ -73,12 +74,12 @@ Page({
       return
     }
     this.setData({ saving: true })
-    // 头像/简介传空串=清空；后端返回最新用户信息，直接刷新本地登录态缓存
-    api.updateProfile({
-      nickname,
-      avatarUrl: this.data.avatarUrl,
-      intro: this.data.intro
-    }).then((u) => {
+    // 后端局部更新口径：字段不传=不修改、传空串=清空。故 UGC 下架期间只提交昵称，
+    // 头像/简介不带上（否则会把用户没编辑的字段误清空）；后端返回最新体，直接刷新本地登录态缓存
+    const form = util.ugcEnabled()
+      ? { nickname, avatarUrl: this.data.avatarUrl, intro: this.data.intro }
+      : { nickname }
+    api.updateProfile(form).then((u) => {
       auth.setUser(u)
       wx.showToast({ title: '已保存', icon: 'success' })
       setTimeout(() => this.goBackSafe(), 600)

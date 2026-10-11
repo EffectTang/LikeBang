@@ -34,21 +34,32 @@
         <div v-if="coverList.length > 1" class="cover-counter">🖼 {{ coverList.length }} 张封面</div>
         <div class="detail-header-top">
           <h1 class="detail-title">{{ detail.title }}</h1>
-          <div v-if="canDelete" class="header-ops">
+          <div class="header-ops">
+            <!-- 收藏：任何登录用户都可用（非内容生产），故不受 canDelete 门控 -->
             <el-button
-              type="primary"
-              plain
+              round
               size="small"
-              :icon="EditPen"
-              @click="openEdit"
-            >编辑榜单</el-button>
-            <el-button
-              type="danger"
-              plain
-              size="small"
-              :icon="Delete"
-              @click="handleDelete"
-            >删除榜单</el-button>
+              :type="detail.myBookmark ? 'warning' : 'default'"
+              :plain="!detail.myBookmark"
+              :loading="bookmarking"
+              @click="toggleBookmark"
+            >{{ detail.myBookmark ? '★ 已收藏' : '☆ 收藏' }}</el-button>
+            <template v-if="canDelete">
+              <el-button
+                type="primary"
+                plain
+                size="small"
+                :icon="EditPen"
+                @click="openEdit"
+              >编辑榜单</el-button>
+              <el-button
+                type="danger"
+                plain
+                size="small"
+                :icon="Delete"
+                @click="handleDelete"
+              >删除榜单</el-button>
+            </template>
           </div>
         </div>
         <p class="detail-desc">{{ detail.description || '暂无描述' }}</p>
@@ -286,7 +297,9 @@ import {
   voteReason,
   cancelReasonVote,
   addRankingItem,
-  deleteRankingItem
+  deleteRankingItem,
+  bookmarkRanking,
+  cancelBookmark
 } from '@/api/ranking'
 import RankingEditDialog from '@/components/RankingEditDialog.vue'
 import ItemEditDialog from '@/components/ItemEditDialog.vue'
@@ -522,6 +535,28 @@ function applyVoteResult(target, data) {
   target.opposeCount = data.opposeCount
   if (data.participantCount != null) target.participantCount = data.participantCount
   if (data.agreeRate != null) target.agreeRate = data.agreeRate
+}
+
+// ---- 收藏：任何登录用户都能收藏（用户自身行为，非内容生产），后端幂等 ----
+const bookmarking = ref(false)
+
+async function toggleBookmark() {
+  if (!userStore.isLogin) {
+    ElMessage.warning('请先登录后收藏')
+    return
+  }
+  if (bookmarking.value) return
+  bookmarking.value = true
+  try {
+    const next = !detail.value.myBookmark
+    const res = next ? await bookmarkRanking(route.params.id) : await cancelBookmark(route.params.id)
+    // 接口 data 回传收藏后的状态（true/false），拿不到就回落成本地预期，不做整页重载
+    const state = res?.data
+    detail.value.myBookmark = typeof state === 'boolean' ? state : next
+    ElMessage.success(detail.value.myBookmark ? '已收藏' : '已取消收藏')
+  } finally {
+    bookmarking.value = false
+  }
 }
 
 // ---- 榜单基础 ----

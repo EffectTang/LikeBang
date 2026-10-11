@@ -1,5 +1,6 @@
 const api = require('../../utils/api')
 const auth = require('../../utils/auth')
+const util = require('../../utils/util')
 
 Page({
   data: {
@@ -12,7 +13,8 @@ Page({
     fillNickname: '',
     fillAvatarTemp: '',   // chooseAvatar 临时本地路径，保存时再上传
     fillAvatarPrev: '',   // 预览用地址（临时路径可直接渲染）
-    fillSaving: false
+    fillSaving: false,
+    uploadOn: util.ugcEnabled()   // 头像上传显隐（个人主体 UGC 整改下架头像/简介，仅留昵称，见 config.UGC_ENABLED）
   },
 
   switchMode(e) {

@@ -5,6 +5,8 @@ const PAGE_SIZE = 10
 
 Page({
   data: {
+    // UGC 标识下架（2026-10-11，见 README_ForAi 4.21）：个人主体隐藏「@发起人」及其跳他人主页的入口
+    publishOn: util.ugcEnabled(),
     list: [],
     categories: [],
     activeCat: null,      // null=全部（搜索态已外迁独立搜索页 pages/search，发现页纯浏览）
@@ -83,8 +85,10 @@ Page({
     wx.navigateTo({ url: '/pages/detail/detail?id=' + e.currentTarget.dataset.id })
   },
 
-  // 点击创建者进入他人主页；creatorId 缺失（历史数据）时不跳转
+  // 点击创建者进入他人主页；creatorId 缺失（历史数据）时不跳转。
+  // UGC 下架期间「@发起人」文案已隐藏，这里再兜一道防旧缓存页仍能路由到已摘除的 pages/user
   goUser(e) {
+    if (!this.data.publishOn) return
     const id = e.currentTarget.dataset.id
     if (id) wx.navigateTo({ url: '/pages/user/user?id=' + id })
   },

@@ -50,7 +50,12 @@ export function listVotedRankings(params) {
   return request.get('/rankings/voted-by-me', { params })
 }
 
-// 我的空间数据概览（仅本人：我发布榜单数 / 收到票数 / 参与投票榜单数）
+// 我收藏的榜单（分页，仅未删除，按收藏时间倒序，供「我的空间-收藏」用）
+export function listBookmarkedRankings(params) {
+  return request.get('/rankings/bookmarked-by-me', { params })
+}
+
+// 我的空间数据概览（仅本人：我发布榜单数 / 收到票数 / 参与投票榜单数 / 收藏数）
 export function getSpaceStats() {
   return request.get('/rankings/space-stats')
 }
@@ -148,4 +153,14 @@ export function voteReason(reasonId, voteType) {
 // 取消对理由的投票
 export function cancelReasonVote(reasonId) {
   return request.delete(`/rankings/reasons/${reasonId}/vote`)
+}
+
+// 收藏榜单（需登录，重复收藏后端幂等成功；data 为收藏后状态 true）
+export function bookmarkRanking(id) {
+  return request.post(`/rankings/${id}/bookmark`)
+}
+
+// 取消收藏（需登录，未收藏过时同样幂等成功；data 为收藏后状态 false）
+export function cancelBookmark(id) {
+  return request.delete(`/rankings/${id}/bookmark`)
 }

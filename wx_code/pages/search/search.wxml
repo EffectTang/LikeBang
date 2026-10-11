@@ -1,12 +1,13 @@
 <view class="page">
-  <!-- 双常驻输入：标题×发起人 AND 交叉过滤，与 Web Phase2 同语义 -->
+  <!-- 双常驻输入：标题×发起人 AND 交叉过滤，与 Web Phase2 同语义；
+       UGC 整改（见 4.19/4.21）期间「发起人」输入框连同交叉过滤能力一并下架，仅保留标题检索 -->
   <view class="search-form">
     <view class="field">
       <text class="label">标题</text>
       <input class="inp" placeholder="搜索榜单标题 / 描述" value="{{keyword}}"
              confirm-type="search" bindinput="onKeyword" bindconfirm="search" />
     </view>
-    <view class="field">
+    <view class="field" wx:if="{{publishOn}}">
       <text class="label">发起人</text>
       <input class="inp" placeholder="@昵称，精确找 TA 创建的榜单" value="{{creatorNickname}}"
              confirm-type="search" bindinput="onCreator" bindconfirm="search" />
@@ -43,7 +44,8 @@
           </view>
           <view class="card-foot">
             <text class="tag" wx:if="{{item.categoryName}}">{{item.categoryName}}</text>
-            <text class="creator">@{{item.creatorNickname}}</text>
+            <!-- UGC 整改期间隐藏「@发起人」用户标识，见 4.19/4.21 -->
+            <text class="creator" wx:if="{{publishOn}}">@{{item.creatorNickname}}</text>
           </view>
         </view>
       </view>

@@ -3,7 +3,6 @@ const util = require('../../utils/util')
 const auth = require('../../utils/auth')
 
 const PAGE_SIZE = 10
-const STATUS_LABEL = { 0: '草稿', 1: '进行中', 2: '已下架' }
 
 Page({
   data: {
@@ -22,7 +21,8 @@ Page({
     current: 1,
     total: 0,
     hasMore: true,
-    loading: false
+    loading: false,
+    publishOn: util.ugcEnabled()   // 个性签名等 UGC 引导语显隐（个人主体整改下架，见 config.UGC_ENABLED）
   },
 
   onShow() {
@@ -111,11 +111,12 @@ Page({
     wx.navigateTo({ url: '/pages/profile/profile' })
   },
 
+  // 我的收藏列表：后端按收藏时间倒序返回（ranking_bookmark join ranking，一条分页 SQL）
   loadList(reset) {
     if (this.data.loading) return
     const current = reset ? 1 : this.data.current
     this.setData({ loading: true })
-    api.listMyRankings({ current, size: PAGE_SIZE }).then((page) => {
+    api.listBookmarkedRankings({ current, size: PAGE_SIZE }).then((page) => {
       const records = (page.records || []).map((r) => this.mapCard(r))
       const total = Number(page.total) || 0
       const list = reset ? records : this.data.list.concat(records)
@@ -131,9 +132,7 @@ Page({
       categoryName: r.categoryName,
       itemLimit: r.itemLimit,
       itemCount: r.itemCount,
-      viewCount: r.viewCount,
-      status: r.status,
-      statusLabel: STATUS_LABEL[r.status] || '未知'
+      viewCount: r.viewCount
     }
   },
 
@@ -145,15 +144,19 @@ Page({
     wx.navigateTo({ url: '/pages/login/login' })
   },
 
-  deleteRanking(e) {
+  // 长按取消收藏：确认后走后端幂等接口，成功就地剔除该行并 total-1（不整页重载，保住分页位置）
+  cancelBookmark(e) {
     const id = e.currentTarget.dataset.id
+    const target = (this.data.list || []).filter((x) => util.sameId(x.id, id))[0]
+    if (!target) return
     wx.showModal({
-      title: '删除榜单', content: '删除后不可恢复，确定？',
+      title: '取消收藏', content: `不再收藏「${target.title}」？`,
       success: (res) => {
         if (!res.confirm) return
-        api.deleteRanking(id).then(() => {
-          wx.showToast({ title: '已删除', icon: 'success' })
-          this.loadList(true)
+        api.cancelBookmark(id).then(() => {
+          wx.showToast({ title: '已取消收藏', icon: 'none' })
+          const list = this.data.list.filter((x) => !util.sameId(x.id, id))
+          this.setData({ list, total: Math.max(0, Number(this.data.total) - 1) })
         }).catch(() => {})
       }
     })

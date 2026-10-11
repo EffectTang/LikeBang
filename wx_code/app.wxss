@@ -95,3 +95,62 @@ page {
   color: #409eff;
   margin-right: 12rpx;
 }
+
+/* 投票分段胶囊（认同/反对互斥，知乎/Reddit 式）
+   —— 两个互斥选项收进一个圆角容器，选中段淡色填充，比两个独立按钮更紧凑、语义清晰 */
+.vote-seg {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1rpx solid #e4e7ed;
+  border-radius: 30rpx;
+  overflow: hidden;
+  background: #fff;
+}
+.vseg {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 10rpx 24rpx;
+  font-size: 24rpx;
+  color: #909399;
+  line-height: 1;
+}
+.vseg + .vseg {
+  border-left: 1rpx solid #eef1f6;
+}
+.vseg-ico {
+  font-size: 18rpx;
+  line-height: 1;
+}
+.vseg-txt {
+  font-size: 24rpx;
+}
+.vseg-num {
+  font-size: 24rpx;
+  font-weight: 600;
+}
+.vseg.agree.on {
+  color: #67c23a;
+  background: #f0f9eb;
+}
+.vseg.oppose.on {
+  color: #f56c6c;
+  background: #fef0f0;
+}
+/* 竖排变体（理由区窄列：上认同下反对，分隔线转横向） */
+.vote-seg.col {
+  flex-direction: column;
+  border-radius: 24rpx;
+}
+.vote-seg.col .vseg + .vseg {
+  border-left: none;
+  border-top: 1rpx solid #eef1f6;
+}
+/* 紧凑变体（理由级投票，省空间/不带文字标签） */
+.vote-seg.sm .vseg {
+  padding: 6rpx 16rpx;
+  gap: 4rpx;
+}
+.vote-seg.sm .vseg-num {
+  font-size: 22rpx;
+}

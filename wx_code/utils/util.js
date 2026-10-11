@@ -21,8 +21,16 @@ function sameId(a, b) {
   return String(a) === String(b)
 }
 
-// 榜单/排名项结构管理门控：本人或超级管理员（口径同 Web canDelete / requireOwnedRanking）
+// UGC 总开关读取口：个人主体整改下，内容生产类入口（发布/编辑/删除/上传）统一以此门控，
+// 单点收敛在 config.UGC_ENABLED，避免各页散落 if 判断口径不一致
+function ugcEnabled() {
+  return config.UGC_ENABLED !== false
+}
+
+// 榜单/排名项/理由内容管理门控：本人或超级管理员（口径同 Web canDelete / requireOwnedRanking）。
+// UGC 下架期间整体返回 false——管理入口本身也是内容生产，不能只藏按钮
 function canManage(creatorId) {
+  if (!ugcEnabled()) return false
   const u = auth.getUser()
   if (!u) return false
   return auth.isAdmin() || sameId(creatorId, u.id)
@@ -32,5 +40,6 @@ module.exports = {
   resolveImage,
   fmtTime,
   sameId,
+  ugcEnabled,
   canManage
 }

@@ -48,7 +48,12 @@ public interface RankingService {
     IPage<RankingResponse> pageVotedByMe(PageParam pageParam, Long userId);
 
     /**
-     * 「我的空间」数据概览：我发布榜单数 / 收到票数 / 参与投票榜单数（仅本人，userId 取登录态）
+     * 分页浏览我收藏的榜单（需登录，仅返回未删除榜单，按收藏时间倒序）
+     */
+    IPage<RankingResponse> pageBookmarkedByMe(PageParam pageParam, Long userId);
+
+    /**
+     * 「我的空间」数据概览：我发布榜单数 / 收到票数 / 参与投票榜单数 / 收藏数（仅本人，userId 取登录态）
      */
     SpaceStatsResponse spaceStats(Long userId);
 

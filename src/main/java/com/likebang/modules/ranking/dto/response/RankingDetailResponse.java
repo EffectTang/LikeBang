@@ -52,6 +52,11 @@ public class RankingDetailResponse {
 
     private LocalDateTime createdAt;
 
+    /**
+     * 当前用户收藏态：true 已收藏，false 未收藏（无登录上下文时同为 false，详情页据此渲染「收藏 / 已收藏」）
+     */
+    private Boolean myBookmark;
+
     private List<RankingItemResponse> items;
 
     @Data

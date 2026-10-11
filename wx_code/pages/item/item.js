@@ -22,7 +22,8 @@ Page({
     publishing: false,
 
     commentsMap: {},   // reasonId -> { visible, loaded, loading, submitting, list, total, current, draft }
-    previewUrl: ''
+    previewUrl: '',
+    publishOn: util.ugcEnabled()   // 理由发布框 / 楼中楼回复框显隐（个人主体 UGC 下架，见 config.UGC_ENABLED）
   },
 
   onLoad(options) {
@@ -66,7 +67,6 @@ Page({
   },
 
   mapReason(r) {
-    const u = auth.getUser()
     return {
       id: r.id,
       content: r.content,
@@ -76,7 +76,8 @@ Page({
       myVoteType: r.myVoteType,
       commentCount: r.commentCount || 0,
       creatorNickname: r.creatorNickname || '匿名',
-      canEdit: auth.isAdmin() || util.sameId(r.creatorId, u && u.id),
+      // 口径同排名项管理（本人或超管），且 UGC 下架期间 canManage 恒 false → 删除入口一并消失
+      canEdit: util.canManage(r.creatorId),
       createdAt: util.fmtTime(r.createdAt)
     }
   },
@@ -91,6 +92,14 @@ Page({
       const reasons = reset ? records : this.data.reasons.concat(records)
       this.setData({ reasons, total, current, hasMore: reasons.length < total })
     }).catch(() => {}).then(() => this.setData({ loading: false }))
+  },
+
+  // ---- UGC 下架兜底：发布/回复/删除的入口已按 util.ugcEnabled 隐藏，
+  // 这里再挡一道，防残留调用或旧缓存页面真的把写请求打到接口
+  ugcBlocked() {
+    if (util.ugcEnabled()) return false
+    wx.showToast({ title: '当前仅支持查看与投票', icon: 'none' })
+    return true
   },
 
   // ---- 主体投票 ----
@@ -126,6 +135,7 @@ Page({
   },
   submitReason() {
     if (!auth.isLogin()) return this.toLogin()
+    if (this.ugcBlocked()) return
     const content = (this.data.draft || '').trim()
     if (!content) {
       wx.showToast({ title: '请输入理由内容', icon: 'none' })
@@ -158,6 +168,7 @@ Page({
   },
 
   deleteReason(e) {
+    if (this.ugcBlocked()) return
     const idx = e.currentTarget.dataset.idx
     const r = this.data.reasons[idx]
     wx.showModal({
@@ -190,18 +201,23 @@ Page({
     if (box.visible && !box.loaded) this.loadComments(rid, 1)
   },
 
+  mapComment(c) {
+    return {
+      id: c.id,
+      content: c.content,
+      creatorNickname: c.creatorNickname || '匿名',
+      createdAt: util.fmtTime(c.createdAt),
+      // 同理由删除口径：本人或超管，UGC 下架期间恒 false
+      canDelete: util.canManage(c.creatorId)
+    }
+  },
+
   loadComments(rid, page) {
     const box = this.ensureBox(rid)
     box.loading = true
     this.setData({ [`commentsMap.${rid}.loading`]: true })
     api.listReasonComments(rid, { current: page, size: PAGE_SIZE }).then((p) => {
-      const records = (p.records || []).map((c) => ({
-        id: c.id,
-        content: c.content,
-        creatorNickname: c.creatorNickname || '匿名',
-        createdAt: util.fmtTime(c.createdAt),
-        canDelete: auth.isAdmin() || util.sameId(c.creatorId, (auth.getUser() || {}).id)
-      }))
+      const records = (p.records || []).map((c) => this.mapComment(c))
       const total = Number(p.total) || 0
       const list = page === 1 ? records : this.data.commentsMap[rid].list.concat(records)
       this.setData({
@@ -220,19 +236,14 @@ Page({
 
   submitComment(e) {
     if (!auth.isLogin()) return this.toLogin()
+    if (this.ugcBlocked()) return
     const rid = e.currentTarget.dataset.rid
     const box = this.data.commentsMap[rid]
     const content = (box.draft || '').trim()
     if (!content) return
     this.setData({ [`commentsMap.${rid}.submitting`]: true })
     api.addReasonComment(rid, content).then((c) => {
-      const item = {
-        id: c.id,
-        content: c.content,
-        creatorNickname: c.creatorNickname || '匿名',
-        createdAt: util.fmtTime(c.createdAt),
-        canDelete: auth.isAdmin() || util.sameId(c.creatorId, (auth.getUser() || {}).id)
-      }
+      const item = this.mapComment(c)
       const cur = this.data.commentsMap[rid]
       const append = cur.list.length >= cur.total ? [item] : []
       this.setData({
@@ -252,6 +263,7 @@ Page({
   },
 
   deleteComment(e) {
+    if (this.ugcBlocked()) return
     const { rid, cid } = e.currentTarget.dataset
     wx.showModal({
       title: '删除回复', content: '确定删除这条回复吗？',
@@ -285,6 +297,7 @@ Page({
     wx.navigateTo({ url: '/pages/login/login' })
   },
   uploadImage(callback) {
+    if (this.ugcBlocked()) return
     wx.chooseMedia({
       count: 1, mediaType: ['image'], sourceType: ['album', 'camera'], sizeType: ['compressed'],
       success: (res) => {

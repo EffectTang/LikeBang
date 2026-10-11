@@ -51,6 +51,21 @@
     </select>
 
     <!--
+      我收藏的榜单分页：驱动表取 ranking_bookmark（idx_user_created 同时命中「按用户过滤」与「按收藏时间倒序」，
+      免 filesort），再按主键回 ranking 取榜头；status != 3 与「我投票的榜单」同口径——
+      收藏过的榜即便下架/删除也保留可回看（收藏行不随榜单软删而清理）。
+      由 MyBatis-Plus 分页插件对 IPage 参数自动补 LIMIT，避免把全部收藏记录载入内存。
+    -->
+    <select id="selectBookmarkedRankingPage" resultType="com.likebang.modules.ranking.entity.Ranking">
+        SELECT r.*
+        FROM ranking_bookmark b
+        JOIN ranking r ON r.id = b.ranking_id
+        WHERE b.user_id = #{userId}
+          AND r.status != 3
+        ORDER BY b.created_at DESC
+    </select>
+
+    <!--
       公开榜单多维搜索：已发布+公开，命中维度 = 标题 / 描述 / 发起人昵称。
       LEFT JOIN sys_user 且把「未删除、未禁用」放进 ON 条件：这样昵称维度只对有效账号生效，
       同时不影响仅靠标题/描述命中的榜单正常返回（发起人被禁用也 merely 少一路昵称命中，榜单本身仍出现）。

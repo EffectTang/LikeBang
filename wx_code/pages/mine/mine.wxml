@@ -13,11 +13,12 @@
           </view>
           <view class="hero-handle">@{{user.username}}</view>
           <view wx:if="{{hasIntro}}" class="hero-intro ellipsis-2">{{user.intro}}</view>
-          <view wx:else class="hero-intro cta">✍ 添加个性签名，让大家认识你 ›</view>
+          <!-- 简介填写属内容生产，个人主体下已下架（资料页仅昵称可改），故引导语随之隐藏 -->
+          <view wx:elif="{{publishOn}}" class="hero-intro cta">✍ 添加个性签名，让大家认识你 ›</view>
         </block>
         <block wx:else>
           <view class="hero-name-row"><text class="hero-name">未登录</text></view>
-          <view class="hero-handle">登录后即可发起榜单、投票、发理由</view>
+          <view class="hero-handle">登录后即可浏览榜单、投票</view>
         </block>
       </view>
     </view>
@@ -45,17 +46,18 @@
     </view>
   </view>
 
-  <!-- 发起入口已上到底部 tab 栏，页内大按钮移除避免双入口稀释 -->
+  <!-- 内容生产（发起榜单/管理榜单）已随个人主体 UGC 整改下架，榜单内容由 Web 端运营产出（见 config.UGC_ENABLED） -->
 
-  <!-- ③ 我的榜单 -->
-  <view class="sec-title">我的榜单（{{total}}）</view>
-  <view wx:for="{{list}}" wx:key="id" class="my-card card" data-id="{{item.id}}" bindtap="goDetail">
+  <!-- ③ 我的收藏：收藏属用户自身行为、不外显内容，不属 UGC 生产，整改后保留；长按卡片取消收藏 -->
+  <view class="sec-title">我的收藏（{{total}}）</view>
+  <view wx:if="{{list.length}}" class="sec-hint">长按卡片可取消收藏</view>
+  <view wx:for="{{list}}" wx:key="id" class="my-card card" data-id="{{item.id}}"
+        bindtap="goDetail" bindlongpress="cancelBookmark">
     <image wx:if="{{item.cover}}" class="my-cover" src="{{item.cover}}" mode="aspectFill" />
-    <view wx:else class="my-cover ph">🏆</view>
+    <view wx:else class="my-cover ph">⭐</view>
     <view class="my-body flex-1">
       <view class="my-title">
         <text class="ellipsis flex-1">{{item.title}}</text>
-        <text class="status s{{item.status}}">{{item.statusLabel}}</text>
       </view>
       <view class="my-meta">
         <text class="tag" wx:if="{{item.categoryName}}">{{item.categoryName}}</text>
@@ -64,11 +66,10 @@
         <text>👁 {{item.viewCount}}</text>
       </view>
     </view>
-    <view class="my-del" catchtap="deleteRanking" data-id="{{item.id}}">删除</view>
   </view>
 
   <view wx:if="{{isLogin && loading}}" class="loading-tip">加载中…</view>
-  <view wx:if="{{isLogin && !loading && list.length === 0}}" class="empty">你还没有榜单，从下方「发起榜单」创建第一个吧</view>
+  <view wx:if="{{isLogin && !loading && list.length === 0}}" class="empty">还没有收藏，去「发现」挑几个榜单</view>
 
   <!-- ④ 退出登录：独立整行、低视觉权重，与「编辑」物理隔离，杜绝误触 -->
   <view wx:if="{{isLogin}}" class="logout-bar" bindtap="logout">退出登录</view>

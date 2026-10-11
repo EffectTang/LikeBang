@@ -19,6 +19,7 @@ import com.likebang.modules.ranking.dto.response.RankingDetailResponse;
 import com.likebang.modules.ranking.dto.response.RankingResponse;
 import com.likebang.modules.ranking.dto.response.SpaceStatsResponse;
 import com.likebang.modules.ranking.dto.response.VoteResponse;
+import com.likebang.modules.ranking.service.BookmarkService;
 import com.likebang.modules.ranking.service.RankingService;
 import com.likebang.modules.ranking.service.ReasonCommentService;
 import com.likebang.modules.ranking.service.VoteService;
@@ -39,6 +40,7 @@ public class RankingController {
 
     private final RankingService rankingService;
     private final VoteService voteService;
+    private final BookmarkService bookmarkService;
     private final ReasonCommentService reasonCommentService;
 
     /**
@@ -89,7 +91,16 @@ public class RankingController {
     }
 
     /**
-     * 「我的空间」数据概览（需登录，仅本人：我发布榜单数 / 收到票数 / 参与投票榜单数）
+     * 我收藏的榜单（分页，需登录，仅返回未删除榜单，按收藏时间倒序）
+     * 字面量路径优先于 /{id} 匹配，与 /mine、/voted-by-me 同范式
+     */
+    @GetMapping("/bookmarked-by-me")
+    public Result<IPage<RankingResponse>> pageBookmarkedByMe(@ModelAttribute PageParam pageParam) {
+        return Result.success(rankingService.pageBookmarkedByMe(pageParam, UserContext.requireUserId()));
+    }
+
+    /**
+     * 「我的空间」数据概览（需登录，仅本人：我发布榜单数 / 收到票数 / 参与投票榜单数 / 收藏数）
      */
     @GetMapping("/space-stats")
     public Result<SpaceStatsResponse> spaceStats() {
@@ -283,6 +294,22 @@ public class RankingController {
     @DeleteMapping("/reasons/{reasonId}/vote")
     public Result<VoteResponse> cancelReasonVote(@PathVariable Long reasonId) {
         return Result.success(voteService.cancelReasonVote(reasonId, UserContext.getLoginUser()));
+    }
+
+    /**
+     * 收藏榜单（需登录，重复收藏幂等成功；返回收藏后状态，恒 true）
+     */
+    @PostMapping("/{id}/bookmark")
+    public Result<Boolean> bookmark(@PathVariable Long id) {
+        return Result.success(bookmarkService.bookmark(id, UserContext.requireUserId()));
+    }
+
+    /**
+     * 取消收藏（需登录，未收藏过时同样幂等成功；返回收藏后状态，恒 false）
+     */
+    @DeleteMapping("/{id}/bookmark")
+    public Result<Boolean> cancelBookmark(@PathVariable Long id) {
+        return Result.success(bookmarkService.cancel(id, UserContext.requireUserId()));
     }
 
     /**

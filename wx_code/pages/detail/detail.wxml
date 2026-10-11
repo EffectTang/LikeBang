@@ -7,10 +7,17 @@
     <view class="hero-desc" wx:if="{{detail.description}}">{{detail.description}}</view>
     <view class="hero-meta">
       <text class="tag" wx:if="{{detail.categoryName}}">{{detail.categoryName}}</text>
-      <text class="creator-link" data-id="{{detail.creatorId}}" bindtap="goUser">@{{detail.creatorNickname || '匿名'}}</text>
+      <!-- UGC 整改期间隐藏「@发起人」标识与跳他人主页入口，见 4.21 -->
+      <text class="creator-link" wx:if="{{publishOn}}" data-id="{{detail.creatorId}}" bindtap="goUser">@{{detail.creatorNickname || '匿名'}}</text>
       <text>🏆 Top {{detail.itemLimit}}</text>
       <text>👥 {{detail.participantCount}}</text>
       <text>👁 {{detail.viewCount}}</text>
+    </view>
+    <!-- 收藏：个人主体下属用户自身行为、不外显内容，非 UGC 生产，整改后保留 -->
+    <view class="hero-foot">
+      <view class="fav {{myBookmark ? 'on' : ''}}" bindtap="toggleBookmark">
+        {{myBookmark ? '★ 已收藏' : '☆ 收藏'}}
+      </view>
     </view>
   </view>
 
@@ -35,11 +42,13 @@
     </view>
 
     <view class="item-ops">
-      <view class="vote-group">
-        <button class="vote {{item.myVoteType === 1 ? 'on-agree' : ''}}" size="mini"
-                data-idx="{{index}}" data-type="1" bindtap="voteItem">👍 {{item.agreeCount}}</button>
-        <button class="vote {{item.myVoteType === -1 ? 'on-oppose' : ''}}" size="mini"
-                data-idx="{{index}}" data-type="-1" bindtap="voteItem">👎 {{item.opposeCount}}</button>
+      <view class="vote-seg">
+        <view class="vseg agree {{item.myVoteType === 1 ? 'on' : ''}}" data-idx="{{index}}" data-type="1" bindtap="voteItem">
+          <text class="vseg-ico">▲</text><text class="vseg-txt">认同</text><text class="vseg-num">{{item.agreeCount}}</text>
+        </view>
+        <view class="vseg oppose {{item.myVoteType === -1 ? 'on' : ''}}" data-idx="{{index}}" data-type="-1" bindtap="voteItem">
+          <text class="vseg-ico">▼</text><text class="vseg-txt">反对</text><text class="vseg-num">{{item.opposeCount}}</text>
+        </view>
       </view>
       <view class="item-right">
         <text class="link" data-idx="{{index}}" bindtap="goItem">查看全部 {{item.reasonCount}} 条理由 ›</text>
@@ -59,20 +68,28 @@
           <image wx:if="{{r.image}}" class="reason-image" src="{{r.image}}" mode="aspectFill"
                  data-url="{{r.image}}" bindtap="preview" />
           <view class="reason-foot">
-            <text class="muted">@{{r.creatorNickname}} · {{r.createdAt}}</text>
-            <text class="muted" data-idx="{{index}}" bindtap="goItem">💬 {{r.commentCount}}</text>
+            <!-- UGC 整改期间隐藏理由作者 @昵称，仅保留时间，见 4.21 -->
+            <text class="muted">{{publishOn ? '@' + r.creatorNickname + ' · ' : ''}}{{r.createdAt}}</text>
+            <!-- 楼中楼评论已隐藏（item 页查看回复下架），此处 💬 评论数入口一并隐藏，避免点开看不到评论 -->
+            <text class="muted" wx:if="{{publishOn}}" data-idx="{{index}}" bindtap="goItem">💬 {{r.commentCount}}</text>
           </view>
         </view>
         <view class="reason-side">
-          <view class="rv {{r.myVoteType === 1 ? 'on-agree' : ''}}" data-idx="{{index}}" data-ridx="{{ridx}}" data-type="1" bindtap="voteReason">👍{{r.agreeCount}}</view>
-          <view class="rv {{r.myVoteType === -1 ? 'on-oppose' : ''}}" data-idx="{{index}}" data-ridx="{{ridx}}" data-type="-1" bindtap="voteReason">👎{{r.opposeCount}}</view>
+          <view class="vote-seg col sm">
+            <view class="vseg agree {{r.myVoteType === 1 ? 'on' : ''}}" data-idx="{{index}}" data-ridx="{{ridx}}" data-type="1" bindtap="voteReason">
+              <text class="vseg-ico">▲</text><text class="vseg-num">{{r.agreeCount}}</text>
+            </view>
+            <view class="vseg oppose {{r.myVoteType === -1 ? 'on' : ''}}" data-idx="{{index}}" data-ridx="{{ridx}}" data-type="-1" bindtap="voteReason">
+              <text class="vseg-ico">▼</text><text class="vseg-num">{{r.opposeCount}}</text>
+            </view>
+          </view>
           <view class="rv danger" wx:if="{{r.canEdit}}" data-idx="{{index}}" data-ridx="{{ridx}}" bindtap="deleteReason">删</view>
         </view>
       </view>
     </view>
 
-    <!-- 新增理由 -->
-    <view class="add-reason">
+    <!-- 新增理由（个人主体 UGC 下架：理由只读展示，发布框整体不渲染，见 config.UGC_ENABLED） -->
+    <view class="add-reason" wx:if="{{publishOn}}">
       <textarea class="reason-input" placeholder="说说你的理由…" maxlength="1000"
                 value="{{item.reasonDraft}}" data-idx="{{index}}" bindinput="onReasonInput" />
       <view class="reason-tools">

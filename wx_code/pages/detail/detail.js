@@ -11,6 +11,7 @@ Page({
     detail: null,
     items: [],
     canManage: false,          // 榜单层门控：创建者本人或超级管理员（增删改排名项/榜单均用它）
+    myBookmark: false,         // 当前用户收藏态（后端随详情返回，收藏态的唯一事实源）
     loading: false,
 
     panel: '',                 // '' | 'rank' | 'item'
@@ -19,7 +20,8 @@ Page({
     visLabels: VIS_LABELS,
     itemForm: {},
     saving: false,
-    previewUrl: ''
+    previewUrl: '',
+    publishOn: util.ugcEnabled()   // 理由发布框显隐（个人主体 UGC 下架，见 config.UGC_ENABLED）
   },
 
   onLoad(options) {
@@ -46,7 +48,8 @@ Page({
         detail: d,
         coverFull: util.resolveImage(d.coverUrl),
         items,
-        canManage: util.canManage(d.creatorId)
+        canManage: util.canManage(d.creatorId),
+        myBookmark: !!d.myBookmark
       })
     }).catch(() => {}).then(() => this.setData({ loading: false }))
   },
@@ -76,7 +79,6 @@ Page({
   },
 
   mapReason(r) {
-    const u = auth.getUser()
     return {
       id: r.id,
       content: r.content,
@@ -86,9 +88,18 @@ Page({
       myVoteType: r.myVoteType,
       commentCount: r.commentCount || 0,
       creatorNickname: r.creatorNickname || '匿名',
-      canEdit: auth.isAdmin() || util.sameId(r.creatorId, u && u.id),
+      // 口径同排名项管理（本人或超管），且 UGC 下架期间 canManage 恒 false → 删除入口一并消失
+      canEdit: util.canManage(r.creatorId),
       createdAt: util.fmtTime(r.createdAt)
     }
+  },
+
+  // ---- UGC 下架兜底：发布/编辑/删除的入口按钮已按 util.ugcEnabled 隐藏，
+  // 这里再挡一道，防残留调用或旧缓存页面真的把写请求打到接口
+  ugcBlocked() {
+    if (util.ugcEnabled()) return false
+    wx.showToast({ title: '当前仅支持查看与投票', icon: 'none' })
+    return true
   },
 
   // ---- 排名项投票：投票=换票，点同向则取消；用返回的最新计数就地更新 ----
@@ -127,6 +138,20 @@ Page({
     }).catch(() => {})
   },
 
+  // ---- 收藏 / 取消收藏：不是内容生产（UGC 下架后仍可用），后端幂等，本地态以服务端返回为准；
+  // favPending 挂在 Page 实例上做连点保护（非视图数据，不进 data）
+  toggleBookmark() {
+    if (!auth.isLogin()) return this.toLogin()
+    if (this.favPending) return
+    this.favPending = true
+    const next = !this.data.myBookmark
+    const req = next ? api.bookmark(this.data.id) : api.cancelBookmark(this.data.id)
+    req.then((bookmarked) => {
+      this.setData({ myBookmark: !!bookmarked })
+      wx.showToast({ title: bookmarked ? '已收藏' : '已取消收藏', icon: 'none' })
+    }).catch(() => {}).then(() => { this.favPending = false })
+  },
+
   // ---- 新增理由 ----
   onReasonInput(e) {
     const idx = e.currentTarget.dataset.idx
@@ -145,6 +170,7 @@ Page({
 
   submitReason(e) {
     if (!auth.isLogin()) return this.toLogin()
+    if (this.ugcBlocked()) return
     const idx = e.currentTarget.dataset.idx
     const it = this.data.items[idx]
     const content = (it.reasonDraft || '').trim()
@@ -163,6 +189,7 @@ Page({
   },
 
   deleteReason(e) {
+    if (this.ugcBlocked()) return
     const { idx, ridx } = e.currentTarget.dataset
     const r = this.data.items[idx].reasons[ridx]
     wx.showModal({
@@ -183,8 +210,10 @@ Page({
     wx.navigateTo({ url: `/pages/item/item?id=${this.data.id}&itemId=${it.id}` })
   },
 
-  // 点击发起人进入他人主页；creatorId 缺失（历史数据）时不跳转
+  // 点击发起人进入他人主页；creatorId 缺失（历史数据）时不跳转。
+  // UGC 下架期间发起人文案已隐藏，再兜一道防路由到已摘除的 pages/user（见 4.21）
   goUser(e) {
+    if (!this.data.publishOn) return
     const id = e.currentTarget.dataset.id
     if (id) wx.navigateTo({ url: '/pages/user/user?id=' + id })
   },
@@ -199,6 +228,7 @@ Page({
 
   // ---- 榜单管理：删除 / 编辑元数据 ----
   deleteRanking() {
+    if (this.ugcBlocked()) return
     wx.showModal({
       title: '删除榜单', content: '删除后不可恢复，确定删除？',
       success: (res) => {
@@ -241,6 +271,7 @@ Page({
   },
 
   saveRankEdit() {
+    if (this.ugcBlocked()) return
     const f = this.data.rankForm
     if (!(f.title || '').trim()) {
       wx.showToast({ title: '标题不能为空', icon: 'none' })
@@ -295,6 +326,7 @@ Page({
   },
 
   saveItem() {
+    if (this.ugcBlocked()) return
     const f = this.data.itemForm
     if (!(f.name || '').trim()) {
       wx.showToast({ title: '名称不能为空', icon: 'none' })
@@ -320,6 +352,7 @@ Page({
   },
 
   deleteItem(e) {
+    if (this.ugcBlocked()) return
     const idx = e.currentTarget.dataset.idx
     const it = this.data.items[idx]
     wx.showModal({
@@ -339,7 +372,9 @@ Page({
   },
 
   // ---- 通用：选图上传，回抛相对路径 ----
+  // 统一在上传入口挡一道：封面/排名项配图/理由配图三处选图都走这里，UGC 下架期间全部不可用
   uploadImage(callback) {
+    if (this.ugcBlocked()) return
     wx.chooseMedia({
       count: 1, mediaType: ['image'], sourceType: ['album', 'camera'], sizeType: ['compressed'],
       success: (res) => {

@@ -449,5 +449,36 @@ VALUES
     (2003, 'search.aggregate.size', '5', '搜索聚合区每维条数', 'search', 'int',
      '全站搜索“全部”模式下，榜单/用户/排名项每一维最多展示的条数（取值范围 1~20）', 1, '1', '20', 30);
 
+-- 23 我的收藏：榜单收藏关系表 ranking_bookmark
+-- 收藏是「用户 × 榜单」的二元关系，延续本项目「专表 + 全链路冗余」风格，不上 target_type 多态竖表：
+-- 将来要收藏排名项/用户时各自新增专表即可，不必为尚不存在的诉求先付动态表单与聚合查询的成本。
+-- 刻意不加 ranking.bookmark_count 冗余计数列：一期无任何消费方（热门榜未立项），
+-- 待需要时按 RankingItemMapper.applyVoteDelta 的「单条 SQL 原子增减 + GREATEST 下限」口径补列，
+-- 避免留下“写了没人读”的字段（同 score/current_rank 的历史教训）。
+-- 取消收藏为物理删除：收藏行不承载投票/审计语义，同 ranking_cover 硬删口径；
+-- 榜单被软删（status=3）时收藏行保留（榜单恢复即可继续用），由列表查询在 SQL 层过滤掉。
+-- 索引说明：uk_ranking_user 前缀已覆盖「按 ranking_id 查我是否收藏过」，故不再单建 idx_ranking_id（避免冗余索引）；
+-- idx_user_created 让「我的收藏按收藏时间倒序」分页直接走索引定位 + 索引序，无 filesort。
+CREATE TABLE IF NOT EXISTS ranking_bookmark (
+    id BIGINT NOT NULL COMMENT '收藏ID，Snowflake生成',
+
+    ranking_id BIGINT NOT NULL COMMENT '排名ID',
+    user_id BIGINT NOT NULL COMMENT '收藏者ID',
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间（即收藏时间，我的收藏按其倒序）',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+
+    PRIMARY KEY (id),
+
+    UNIQUE KEY uk_ranking_user (ranking_id, user_id),
+
+    KEY idx_user_created (user_id, created_at)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='榜单收藏表';
+
+
 
   

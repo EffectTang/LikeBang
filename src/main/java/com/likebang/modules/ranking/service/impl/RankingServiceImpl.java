@@ -36,6 +36,7 @@ import com.likebang.modules.ranking.mapper.RankingItemVoteMapper;
 import com.likebang.modules.ranking.mapper.RankingMapper;
 import com.likebang.modules.ranking.mapper.RankingReasonMapper;
 import com.likebang.modules.ranking.mapper.RankingReasonVoteMapper;
+import com.likebang.modules.ranking.service.BookmarkService;
 import com.likebang.modules.ranking.service.RankingService;
 import com.likebang.modules.system.constant.ConfigKeys;
 import com.likebang.modules.system.service.SysConfigService;
@@ -87,6 +88,7 @@ public class RankingServiceImpl implements RankingService {
     private final RankingReasonVoteMapper rankingReasonVoteMapper;
     private final SysUserMapper sysUserMapper;
     private final SysConfigService sysConfigService;
+    private final BookmarkService bookmarkService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -272,6 +274,12 @@ public class RankingServiceImpl implements RankingService {
     }
 
     @Override
+    public IPage<RankingResponse> pageBookmarkedByMe(PageParam pageParam, Long userId) {
+        // 与 pageVotedByMe 同构：一条 join 分页（按收藏时间倒序），排序与 total 都落在 SQL 层
+        return toResponse(rankingMapper.selectBookmarkedRankingPage(pageParam.toPage(), userId));
+    }
+
+    @Override
     public SpaceStatsResponse spaceStats(Long userId) {
         SpaceStatsResponse stats = new SpaceStatsResponse();
         // 我发布的榜单数：与 pageMine 同口径（排除已删除）
@@ -281,6 +289,8 @@ public class RankingServiceImpl implements RankingService {
                         .ne(Ranking::getStatus, STATUS_DELETED)));
         stats.setReceivedVoteCount(nullSafe(rankingMapper.countReceivedVotes(userId)));
         stats.setJoinedRankingCount(nullSafe(rankingMapper.countVotedRankings(userId)));
+        // 收藏数收敛在收藏服务内取，榜单服务不直接碰 ranking_bookmark 的存储细节
+        stats.setBookmarkCount(bookmarkService.countByUser(userId));
         return stats;
     }
 
@@ -318,6 +328,8 @@ public class RankingServiceImpl implements RankingService {
         }
         response.setCoverUrls(covers);
         response.setCoverLimit(coverLimit());
+        // 收藏态回填：随详情一次给出，前端不必再发一次「我是否收藏过」的请求（无额外 round trip）
+        response.setMyBookmark(bookmarkService.isBookmarked(id, UserContext.getUserId()));
         response.setCreatorNickname(nicknameMap(Collections.singleton(ranking.getCreatorId()))
                 .get(ranking.getCreatorId()));
         if (ranking.getCategoryId() != null) {
