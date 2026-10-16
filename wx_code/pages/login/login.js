@@ -1,6 +1,7 @@
 const api = require('../../utils/api')
 const auth = require('../../utils/auth')
 const util = require('../../utils/util')
+const config = require('../../utils/config')
 
 Page({
   data: {
@@ -50,6 +51,25 @@ Page({
       setTimeout(() => this.goAfterLogin(), 600)
     }).catch(() => {
       this.setData({ submitting: false })
+    })
+  },
+
+  // 忘记起号密码：小程序无浏览器、邮件重置链接落地页为 Web 形态，故不在此重复实现，
+  // 引导用户改用微信一键登录，或前往网页端用注册邮箱重置（可一键复制站点地址）
+  onForgotPassword() {
+    wx.showModal({
+      title: '忘记密码',
+      content: '你可以直接点下方“微信一键登录”进入；如需找回账号密码，请前往网页端 ' + config.WEB_SITE + ' 用注册邮箱重置。',
+      confirmText: '复制网址',
+      cancelText: '知道了',
+      success: (res) => {
+        if (res.confirm) {
+          wx.setClipboardData({
+            data: config.WEB_SITE,
+            success: () => wx.showToast({ title: '网址已复制', icon: 'none' })
+          })
+        }
+      }
     })
   },
 

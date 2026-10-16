@@ -63,6 +63,10 @@
   font-size: 28rpx;
   color: #606266;
 }
+.req {
+  color: #f56c6c;
+  margin-right: 4rpx;
+}
 .input {
   flex: 1;
   min-width: 0;
@@ -85,6 +89,12 @@
   align-items: center;
   justify-content: center;
   line-height: 1;
+}
+.forgot {
+  text-align: right;
+  color: #409eff;
+  font-size: 26rpx;
+  margin-top: 20rpx;
 }
 .divider {
   display: flex;

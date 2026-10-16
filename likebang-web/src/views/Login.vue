@@ -14,59 +14,62 @@
         <el-tab-pane label="扫码登录" name="wechat" />
       </el-tabs>
 
+      <div v-if="mode !== 'wechat'" class="form-tip">
+        带 <span class="req">*</span> 为必填项
+      </div>
       <el-form
         v-if="mode !== 'wechat'"
         ref="formRef"
         :model="form"
         :rules="rules"
-        label-width="0"
+        label-position="top"
         size="large"
         @keyup.enter="submit"
       >
-        <el-form-item prop="username">
+        <el-form-item prop="username" label="用户名">
           <el-input
             v-model.trim="form.username"
             :prefix-icon="User"
-            placeholder="用户名"
+            placeholder="4~32 位字母/数字/下划线"
             maxlength="32"
           />
         </el-form-item>
 
-        <el-form-item v-if="mode === 'register'" prop="nickname">
+        <el-form-item v-if="mode === 'register'" prop="nickname" label="昵称">
           <el-input
             v-model.trim="form.nickname"
             :prefix-icon="Avatar"
-            placeholder="昵称"
+            placeholder="展示名称"
             maxlength="32"
           />
         </el-form-item>
 
-        <el-form-item v-if="mode === 'register'" prop="email">
+        <el-form-item v-if="mode === 'register'" prop="email" label="邮箱">
           <el-input
             v-model.trim="form.email"
             :prefix-icon="Message"
-            placeholder="邮箱"
+            placeholder="name@example.com（用于找回密码）"
             maxlength="128"
           />
         </el-form-item>
 
-        <el-form-item prop="password">
+        <el-form-item prop="password" label="密码">
           <el-input
             v-model="form.password"
             :prefix-icon="Lock"
             type="password"
-            placeholder="密码"
+            placeholder="6~32 位"
             show-password
             maxlength="32"
           />
         </el-form-item>
 
-        <el-form-item v-if="mode === 'register'" prop="confirmPassword">
+        <el-form-item v-if="mode === 'register'" prop="confirmPassword" label="确认密码">
           <el-input
             v-model="form.confirmPassword"
             :prefix-icon="Lock"
             type="password"
-            placeholder="确认密码"
+            placeholder="再次输入密码"
             show-password
             maxlength="32"
           />
@@ -82,6 +85,10 @@
             {{ mode === 'login' ? '登 录' : '注 册' }}
           </el-button>
         </el-form-item>
+
+        <div v-if="mode === 'login'" class="forgot-link">
+          <el-button link type="primary" @click="router.push('/forgot-password')">忘记密码？</el-button>
+        </div>
       </el-form>
 
       <div v-if="mode === 'wechat'" class="scan-panel">
@@ -267,6 +274,23 @@ onBeforeUnmount(stopScanTimers)
 
 .submit-btn {
   width: 100%;
+}
+
+.form-tip {
+  margin: 4px 0 8px;
+  font-size: 13px;
+  color: #909399;
+}
+
+.form-tip .req {
+  color: var(--el-color-danger);
+  font-weight: 700;
+}
+
+.forgot-link {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -8px;
 }
 
 .scan-panel {

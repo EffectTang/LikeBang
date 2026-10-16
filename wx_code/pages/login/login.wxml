@@ -14,25 +14,25 @@
   <!-- 白卡片表单：左标签右输入、行间分割线，label 与输入框视觉隔离 -->
   <view class="fields">
     <view class="field">
-      <text class="label">用户名</text>
+      <text class="label"><text class="req">*</text>用户名</text>
       <input class="input" placeholder="4~32 位字母/数字/下划线" placeholder-class="ph"
              value="{{form.username}}" bindinput="onInput" data-key="username" />
     </view>
 
     <view class="field" wx:if="{{mode === 'register'}}">
-      <text class="label">昵称</text>
+      <text class="label"><text class="req">*</text>昵称</text>
       <input class="input" placeholder="展示名称" placeholder-class="ph"
              value="{{form.nickname}}" bindinput="onInput" data-key="nickname" />
     </view>
 
     <view class="field">
-      <text class="label">密码</text>
+      <text class="label"><text class="req">*</text>密码</text>
       <input class="input" password placeholder="6~32 位" placeholder-class="ph"
              value="{{form.password}}" bindinput="onInput" data-key="password" />
     </view>
 
     <view class="field" wx:if="{{mode === 'register'}}">
-      <text class="label">邮箱</text>
+      <text class="label"><text class="req">*</text>邮箱</text>
       <input class="input" placeholder="name@example.com" placeholder-class="ph"
              value="{{form.email}}" bindinput="onInput" data-key="email" />
     </view>
@@ -47,6 +47,9 @@
   <button class="btn-primary submit" loading="{{submitting}}" bindtap="submit">
     {{mode === 'login' ? '登录' : '注册并登录'}}
   </button>
+
+  <!-- 密码重置为邮件链接落地页（Web 形态），小程序不重复实现，仅引导 -->
+  <view class="forgot" wx:if="{{mode === 'login'}}" bindtap="onForgotPassword">忘记密码？</view>
 
   <view class="divider"><text>或</text></view>
 

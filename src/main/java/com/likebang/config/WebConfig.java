@@ -47,6 +47,8 @@ public class WebConfig implements WebMvcConfigurer {
                         "/user/auth/login",
                         "/user/auth/register",
                         "/user/auth/wx-login",
+                        // 找回密码：申请重置邮件与完成重置均为免登录接口（频控与令牌校验在服务层）
+                        "/user/auth/password-reset/**",
                         // Web 扫码登录：生成二维码与轮询状态为公开接口（扫码确认 scan-confirm 需小程序登录态，不放行）
                         "/user/auth/scan-qr",
                         "/user/auth/scan-status",

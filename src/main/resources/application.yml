@@ -11,6 +11,17 @@ spring:
       # 单张图片上限 5MB，单次请求上限 10MB（超限由 GlobalExceptionHandler 前拦截为 400）
       max-file-size: 5MB
       max-request-size: 10MB
+  mail:
+    # 找回密码邮件通道：host 为空则视为未配置（重置接口返回明确提示，不静默失败）
+    # 生产凭证务必走环境变量注入，禁止提交明文（QQ/163 需用 SMTP 授权码而非登录密码）
+    host: ${MAIL_SMTP_HOST:}
+    port: ${MAIL_SMTP_PORT:465}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      # 465 端口走 SSL（JavaMail 默认未启用 SSL 套接字，需显式开启）
+      mail.smtp.ssl.enable: "${MAIL_SMTP_SSL_ENABLE:true}"
 
 likebang:
   file:
@@ -35,6 +46,14 @@ likebang:
       # AppSecret：同页面"小程序密钥"处生成，属敏感信息，切勿提交仓库，生产通过环境变量 WX_APP_SECRET 注入
       app-secret: ${WX_APP_SECRET:}
       env-version: develop
+    # 找回密码（邮件重置链接）：邮件通道依赖上方 spring.mail，未配置时重置申请不可用
+    password-reset:
+      # 邮件中重置链接的 Web 站点前缀（生产改为正式域名，如 https://likebang.example.com）
+      web-base-url: ${RESET_WEB_BASE_URL:http://localhost:5173}
+      # 发件人地址，缺省取 spring.mail.username
+      from: ${MAIL_FROM:}
+      # 重置链接有效期（分钟），默认 30 分钟
+      expiry-minutes: ${RESET_TOKEN_EXPIRY_MINUTES:30}
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml

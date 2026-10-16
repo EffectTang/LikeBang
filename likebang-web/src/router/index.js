@@ -12,6 +12,19 @@ const routes = [
     meta: { public: true }
   },
   {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: () => import('@/views/ForgotPassword.vue'),
+    meta: { public: true }
+  },
+  {
+    // 邮件重置链接落地页：/reset-password?token=xxx，免登录访问
+    path: '/reset-password',
+    name: 'ResetPassword',
+    component: () => import('@/views/ResetPassword.vue'),
+    meta: { public: true }
+  },
+  {
     path: '/community',
     name: 'Community',
     component: () => import('@/views/Community.vue')

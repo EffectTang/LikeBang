@@ -34,6 +34,14 @@ export const useUserStore = defineStore('user', {
       const res = await request.get('/user/auth/scan-status', { params: { sceneId } })
       return res.data
     },
+    // 找回密码：申请向登记邮箱发送重置链接邮件（后端防探测，始终成功；频控错误由 axios 拦截器提示）
+    async requestPasswordReset(email) {
+      await request.post('/user/auth/password-reset/request', { email })
+    },
+    // 完成密码重置：凭邮件链接中的一次性令牌设新密码，成功后令牌即刻失效
+    async completePasswordReset(token, newPassword) {
+      await request.post('/user/auth/password-reset/complete', { token, newPassword })
+    },
     setAuth({ token, userInfo }) {
       this.token = token
       this.userInfo = userInfo

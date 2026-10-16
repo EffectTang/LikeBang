@@ -36,6 +36,30 @@ public class AuthProperties {
      */
     private Wx wx = new Wx();
 
+    /**
+     * 找回密码（邮件重置链接）配置：邮件通道依赖 spring.mail，未配置时申请接口业务报错
+     */
+    private PasswordReset passwordReset = new PasswordReset();
+
+    @Data
+    public static class PasswordReset {
+
+        /**
+         * 邮件中重置链接的 Web 站点前缀（如 http://localhost:5173），生产须通过环境变量指向正式域名
+         */
+        private String webBaseUrl = "http://localhost:5173";
+
+        /**
+         * 发件人地址；留空时取 spring.mail.username
+         */
+        private String from;
+
+        /**
+         * 重置链接有效期（分钟）：安全凭证短时效，与扫码会话同口径
+         */
+        private int expiryMinutes = 30;
+    }
+
     @Data
     public static class Wx {
 

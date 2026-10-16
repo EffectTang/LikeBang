@@ -1,17 +1,22 @@
 package com.likebang.modules.user.controller;
 
+import cn.hutool.extra.servlet.JakartaServletUtil;
 import com.likebang.common.result.Result;
 import com.likebang.common.auth.RequireRole;
 import com.likebang.common.auth.UserRole;
 import com.likebang.common.utils.UserContext;
 import com.likebang.modules.user.dto.request.LoginRequest;
+import com.likebang.modules.user.dto.request.PasswordResetCompleteRequest;
+import com.likebang.modules.user.dto.request.PasswordResetRequest;
 import com.likebang.modules.user.dto.request.ProfileUpdateRequest;
 import com.likebang.modules.user.dto.request.RegisterRequest;
 import com.likebang.modules.user.dto.request.WxLoginRequest;
 import com.likebang.modules.user.dto.response.LoginResponse;
 import com.likebang.modules.user.dto.response.UserInfoResponse;
+import com.likebang.modules.user.service.PasswordResetService;
 import com.likebang.modules.user.service.UserService;
 import com.likebang.modules.user.service.WxAccessTokenService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,6 +36,7 @@ public class AuthController {
 
     private final UserService userService;
     private final WxAccessTokenService wxAccessTokenService;
+    private final PasswordResetService passwordResetService;
 
     /**
      * 注册（成功后直接返回登录态）
@@ -46,6 +52,26 @@ public class AuthController {
     @PostMapping("/login")
     public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return Result.success(userService.login(request));
+    }
+
+    /**
+     * 找回密码（免登录）：向登记邮箱发送含一次性重置链接的邮件。
+     * 无论邮箱是否存在均返回成功（防账号探测）；来源 IP 取自代理头，供服务层频控与审计
+     */
+    @PostMapping("/password-reset/request")
+    public Result<Void> requestPasswordReset(@Valid @RequestBody PasswordResetRequest request,
+                                             HttpServletRequest servletRequest) {
+        passwordResetService.requestReset(request, JakartaServletUtil.getClientIP(servletRequest));
+        return Result.success(null);
+    }
+
+    /**
+     * 完成密码重置（免登录）：凭邮件链接中的一次性令牌设置新密码，成功后旧链接即刻失效
+     */
+    @PostMapping("/password-reset/complete")
+    public Result<Void> completePasswordReset(@Valid @RequestBody PasswordResetCompleteRequest request) {
+        passwordResetService.completeReset(request);
+        return Result.success(null);
     }
 
     /**

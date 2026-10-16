@@ -21,7 +21,9 @@ public enum ResultCode {
     USER_DISABLED(1004, "账号已被禁用"),
     TOKEN_INVALID(1005, "登录状态无效，请重新登录"),
     WX_CONFIG_MISSING(1006, "微信登录未配置，请联系管理员"),
-    WX_LOGIN_FAILED(1007, "微信登录失败，请重试");
+    WX_LOGIN_FAILED(1007, "微信登录失败，请重试"),
+    MAIL_CONFIG_MISSING(1008, "邮件通道未配置，暂无法通过邮件重置密码，请联系管理员"),
+    RESET_TOKEN_INVALID(1009, "重置链接无效或已过期，请重新申请");
 
     private final Integer code;
     private final String message;
