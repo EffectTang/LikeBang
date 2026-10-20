@@ -3,7 +3,10 @@
 // 开发调试：微信开发者工具需勾选「不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书」。
 // 真机 / 生产：改成你的 HTTPS 域名并在小程序后台配置 request / uploadFile / downloadFile 合法域名。
 module.exports = {
-  BASE_URL: 'http://localhost:8080/api',
+  BASE_URL: 'http://192.168.1.10:8080/api',
+  // 网页端站点地址（likebang-web）：登录页「忘记密码」引导用户前往此地址用注册邮箱重置。
+  // 开发为 vite 预览端口；生产改成正式 HTTPS 域名（须与后端 password-reset.web-base-url 一致）。
+  WEB_SITE: 'http://192.168.1.10:5173',
   // UGC 总开关（2026-10-11 个人主体整改）：微信个人主体小程序不支持 UGC 类目，故内容生产
   // （发起榜单、新增/编辑/删除排名项、发理由、楼中楼回复、头像与简介等资料填写）在小程序端全部下架，
   // 只留「查看 + 投票」；内容改由 Web 端（likebang-web）运营产出。

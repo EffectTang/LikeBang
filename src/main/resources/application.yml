@@ -25,10 +25,22 @@ spring:
 
 likebang:
   file:
+    # 图片存储模式：local（本地磁盘，默认）| cloudbase（腾讯 CloudBase 云存储）
+    storage-mode: ${FILE_STORAGE_MODE:local}
     # 图片本地存储根目录（生产建议通过环境变量 UPLOAD_PATH 指向独立数据盘）
     storage-path: ${UPLOAD_PATH:./uploads}
     # 对外访问前缀，需与 WebConfig 静态资源映射保持一致
     access-prefix: /uploads
+    # CloudBase 传统模式云存储（storage-mode=cloudbase 时生效）
+    cloudbase:
+      # 环境 ID：开放接口网关域名与 cloudObjectId 均基于它拼接
+      env-id: ${CLOUDBASE_ENV_ID:}
+      # API Key（管理员权限、长期有效）：仅服务端持有，严禁提交仓库/下发客户端
+      api-key: ${CLOUDBASE_API_KEY:}
+      # 公有读 CDN 域名前缀：落库存的永久链接 = 本前缀 + objectId（安全规则须“所有用户可读”）
+      cdn-base-url: ${CLOUDBASE_CDN_BASE_URL:}
+      # 云存储对象目录前缀（不可 / 开头）
+      object-prefix: images
   snowflake:
     worker-id: ${WORKER_ID:1}
     datacenter-id: ${DC_ID:1}

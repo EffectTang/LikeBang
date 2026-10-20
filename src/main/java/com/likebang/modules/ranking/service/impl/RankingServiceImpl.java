@@ -38,19 +38,24 @@ import com.likebang.modules.ranking.mapper.RankingReasonMapper;
 import com.likebang.modules.ranking.mapper.RankingReasonVoteMapper;
 import com.likebang.modules.ranking.service.BookmarkService;
 import com.likebang.modules.ranking.service.RankingService;
+import com.likebang.modules.file.service.ImageStorageService;
 import com.likebang.modules.system.constant.ConfigKeys;
 import com.likebang.modules.system.service.SysConfigService;
 import com.likebang.modules.user.entity.SysUser;
 import com.likebang.modules.user.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -62,6 +67,7 @@ import java.util.stream.Collectors;
 /**
  * 榜单服务实现：创建发布 / 社区浏览 / 详情
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RankingServiceImpl implements RankingService {
@@ -89,6 +95,7 @@ public class RankingServiceImpl implements RankingService {
     private final SysUserMapper sysUserMapper;
     private final SysConfigService sysConfigService;
     private final BookmarkService bookmarkService;
+    private final ImageStorageService imageStorageService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -508,10 +515,17 @@ public class RankingServiceImpl implements RankingService {
 
         // 单列显式写回：lambdaUpdate().set 会把列真正更新（空白归一为 null 即清空），
         // 不像 updateById 忽略 null 字段导致"清空"不生效
+        String newImageUrl = StrUtil.trimToNull(imageUrl);
         rankingItemMapper.update(null, Wrappers.<RankingItem>lambdaUpdate()
                 .eq(RankingItem::getId, itemId)
-                .set(RankingItem::getImageUrl, StrUtil.trimToNull(imageUrl))
+                .set(RankingItem::getImageUrl, newImageUrl)
                 .set(RankingItem::getUpdatedAt, DateTimeUtils.now()));
+
+        // 旧图被替换/清空后成为孤立引用，提交后清理（新旧相同则不动，避免误删仍在引用的图）
+        String oldImageUrl = item.getImageUrl();
+        if (StrUtil.isNotBlank(oldImageUrl) && !oldImageUrl.equals(newImageUrl)) {
+            deleteImagesAfterCommit(List.of(oldImageUrl));
+        }
     }
 
     @Override
@@ -826,12 +840,19 @@ public class RankingServiceImpl implements RankingService {
         rankingMapper.updateById(update);
 
         if (cleanedCovers != null) {
+            // 整组替换前先快照旧封面（专表 ∪ 冗余 cover_url 冷数据），用于算出被移除的孤立图
+            List<String> oldCoverUrls = currentCoverUrls(id, ranking);
+            final List<String> newCovers = cleanedCovers;
             // cover_url 显式写回第 1 张（空列表落 null）：updateById 忽略 null，覆盖式语义必须显式 set
             rankingMapper.update(null, Wrappers.<Ranking>lambdaUpdate()
                     .eq(Ranking::getId, id)
                     .set(Ranking::getCoverUrl,
-                            cleanedCovers.isEmpty() ? null : cleanedCovers.get(0)));
-            saveCovers(id, cleanedCovers);
+                            newCovers.isEmpty() ? null : newCovers.get(0)));
+            saveCovers(id, newCovers);
+            // 新集合未包含的旧封面已无引用，提交后清理
+            List<String> removed = oldCoverUrls.stream()
+                    .filter(u -> !newCovers.contains(u)).collect(Collectors.toList());
+            deleteImagesAfterCommit(removed);
         }
     }
 
@@ -866,6 +887,21 @@ public class RankingServiceImpl implements RankingService {
                 throw new BusinessException(ResultCode.BAD_REQUEST.getCode(), "封面地址长度不能超过512");
             }
         }
+    }
+
+    /**
+     * 当前榜单已有封面 URL：专表记录 ∪ 冷备的 cover_url（历史单图榜单可能无专表行），去重保序。
+     */
+    private List<String> currentCoverUrls(Long rankingId, Ranking ranking) {
+        List<String> urls = rankingCoverMapper.selectList(new LambdaQueryWrapper<RankingCover>()
+                        .eq(RankingCover::getRankingId, rankingId)).stream()
+                .map(RankingCover::getImageUrl)
+                .filter(StrUtil::isNotBlank)
+                .collect(Collectors.toCollection(ArrayList::new));
+        if (StrUtil.isNotBlank(ranking.getCoverUrl()) && !urls.contains(ranking.getCoverUrl())) {
+            urls.add(ranking.getCoverUrl());
+        }
+        return urls;
     }
 
     /**
@@ -938,12 +974,20 @@ public class RankingServiceImpl implements RankingService {
         RankingReason update = new RankingReason();
         update.setId(reason.getId());
         update.setContent(request.getContent());
+        String newImageUrl = null;
         if (request.getImageUrl() != null) {
             // null=不修改图片；空串能真正落库清空列（updateById 忽略 null 字段）
-            update.setImageUrl(request.getImageUrl().trim());
+            newImageUrl = request.getImageUrl().trim();
+            update.setImageUrl(newImageUrl);
         }
         update.setUpdatedAt(DateTimeUtils.now());
         rankingReasonMapper.updateById(update);
+
+        // 仅当本次提交了新图且与旧图不同，旧图才隔离待删（未改动图片时 newImageUrl==null 不动）
+        String oldImageUrl = reason.getImageUrl();
+        if (newImageUrl != null && StrUtil.isNotBlank(oldImageUrl) && !oldImageUrl.equals(newImageUrl)) {
+            deleteImagesAfterCommit(List.of(oldImageUrl));
+        }
     }
 
     @Override
@@ -980,6 +1024,43 @@ public class RankingServiceImpl implements RankingService {
             throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "无权操作该理由");
         }
         return reason;
+    }
+
+    /**
+     * 登记待清理的孤立图片（被替换/清空后的旧图），统一在事务成功提交后删除。
+     * <p>
+     * 之所以延后到 afterCommit：回滚时 DB 仍引用旧图，物理删除会造成图裂；提交后删除才安全。
+     * 软删除（项/理由/榜单）不走此路径——它们保留数据可恢复，物理文件必须留着。
+     * 无活动事务时（如非事务入口）立即删。删除 best-effort：失败仅告警，绝不影响已提交的业务。
+     */
+    private void deleteImagesAfterCommit(Collection<String> urls) {
+        if (urls == null || urls.isEmpty()) {
+            return;
+        }
+        List<String> targets = urls.stream()
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        if (targets.isEmpty()) {
+            return;
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            targets.forEach(this::deleteImageQuietly);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                targets.forEach(RankingServiceImpl.this::deleteImageQuietly);
+            }
+        });
+    }
+
+    /** best-effort：单张图片清理，异常吞掉只告警 */
+    private void deleteImageQuietly(String url) {
+        try {
+            imageStorageService.deleteImage(url);
+        } catch (Exception e) {
+            log.warn("图片清理失败（忽略）: {}", url, e);
+        }
     }
 
     private Map<Long, String> nicknameMap(Set<Long> userIds) {

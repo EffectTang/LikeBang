@@ -3,6 +3,7 @@ package com.likebang.config;
 import com.likebang.modules.file.service.FileStorageService;
 import com.likebang.modules.user.interceptor.AuthInterceptor;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -16,10 +17,13 @@ public class WebConfig implements WebMvcConfigurer {
     private final AuthInterceptor authInterceptor;
 
     /**
-     * 图片存储唯一事实源：静态映射的目录/前缀直接复用 FileStorageService 已归一化的解析结果，
+     * 图片存储唯一事实源：静态映射的目录/前缀直接复用本地存储实现已归一化的解析结果，
      * 保证“落盘写到哪”与“对外从哪读”永远同一目录（根治相对路径 ./uploads 被两套 API 解析分叉）。
+     * <p>
+     * 用 {@link ObjectProvider} 延迟按需获取：云存储模式（storage-mode=cloudbase）下本地 Bean
+     * 不存在，此时无需本地静态资源映射，跳过即可（新图走云存储 CDN 域名直读）。
      */
-    private final FileStorageService fileStorageService;
+    private final ObjectProvider<FileStorageService> fileStorageServiceProvider;
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
@@ -58,10 +62,15 @@ public class WebConfig implements WebMvcConfigurer {
     }
 
     /**
-     * 上传目录静态资源映射：/uploads/** → FileStorageService 已解析的绝对存储根目录
+     * 上传目录静态资源映射（仅本地存储模式）：/uploads/** → FileStorageService 已解析的绝对存储根目录。
+     * 云存储模式下无本地 Bean，跳过映射。
      */
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        FileStorageService fileStorageService = fileStorageServiceProvider.getIfAvailable();
+        if (fileStorageService == null) {
+            return;
+        }
         String location = fileStorageService.getStorageRoot().toUri().toString();
         // 目录尚未创建时 toUri() 不会带尾部斜杠，会被当成文件基准导致相对解析错位
         if (!location.endsWith("/")) {

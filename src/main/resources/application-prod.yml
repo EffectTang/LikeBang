@@ -8,3 +8,11 @@ spring:
 logging:
   level:
     com.likebang: info
+
+likebang:
+  file:
+    # 生产启用 CloudBase 云存储；密钥严禁落仓，通过环境变量 CLOUDBASE_API_KEY 注入
+    storage-mode: ${FILE_STORAGE_MODE:cloudbase}
+    cloudbase:
+      env-id: ${CLOUDBASE_ENV_ID:}
+      cdn-base-url: ${CLOUDBASE_CDN_BASE_URL:https://6c69-likebang-d8gju730ed29055ba-1505149327.tcb.qcloud.la/}

@@ -1,7 +1,7 @@
 package com.likebang.modules.file.controller;
 
 import com.likebang.common.result.Result;
-import com.likebang.modules.file.service.FileStorageService;
+import com.likebang.modules.file.service.ImageStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,13 +17,13 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class FileUploadController {
 
-    private final FileStorageService fileStorageService;
+    private final ImageStorageService imageStorageService;
 
     /**
      * 上传图片（登录用户可用；表单字段名 file）
      */
     @PostMapping("/image")
     public Result<String> uploadImage(@RequestParam("file") MultipartFile file) {
-        return Result.success(fileStorageService.storeImage(file));
+        return Result.success(imageStorageService.storeImage(file));
     }
 }
